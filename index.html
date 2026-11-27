@@ -804,7 +804,7 @@
 
   <header class="app-header">
     <div class="header-title">
-      <span><span data-i18n="appTitle">Сканер товаров</span> <small style="font-weight:500; opacity:0.65; font-size:11px;">v2.5</small></span>
+      <span><span data-i18n="appTitle">Сканер товаров</span> <small style="font-weight:500; opacity:0.65; font-size:11px;">v2.6</small></span>
       <span class="header-sub" id="header-user-label">Не выбран пользователь</span>
     </div>
     <div class="header-actions">
@@ -1179,7 +1179,10 @@
         camFail: 'Не удалось запустить камеру ({msg}). Используйте «📸 По фото».',
         photoFail: 'Не удалось распознать штрихкод на фото.',
         photoErr: 'Ошибка обработки фото: {msg}',
-        voiceNotInBase: 'Нет в базе'
+        voiceNotInBase: 'Нет в базе',
+        voiceScanned: 'Считано',
+        voiceQty: 'Количество {n}',
+        voiceTest: 'Голос включён'
       },
       pl: {
         appTitle: 'Skaner towarów',
@@ -1295,7 +1298,10 @@
         camFail: 'Nie udało się uruchomić kamery ({msg}). Użyj „📸 Ze zdjęcia”.',
         photoFail: 'Nie udało się rozpoznać kodu na zdjęciu.',
         photoErr: 'Błąd przetwarzania zdjęcia: {msg}',
-        voiceNotInBase: 'Brak w bazie'
+        voiceNotInBase: 'Brak w bazie',
+        voiceScanned: 'Zeskanowano',
+        voiceQty: 'Ilość {n}',
+        voiceTest: 'Głos włączony'
       }
     };
 
@@ -1311,9 +1317,11 @@
     let currentLocation = '';
     let soundEnabled = true;
     let scanTickEnabled = true;
-    let voiceEnabled = false;
+    let voiceEnabled = true;
     let audioCtx = null;
     let audioUnlocked = false;
+    let voiceUnlocked = false;
+    let wavCache = {};
     let scanTickTimer = null;
     let mediaStream = null;
     let scanTimer = null;
@@ -1352,8 +1360,8 @@
     };
 
     window.addEventListener('DOMContentLoaded', initApp);
-    window.addEventListener('pointerdown', unlockAudio, { passive: true });
-    window.addEventListener('touchstart', unlockAudio, { passive: true });
+    window.addEventListener('click', unlockAllMedia, { passive: true });
+    window.addEventListener('touchend', unlockAllMedia, { passive: true });
     window.addEventListener('online', function() { flushOfflineQueue(false); });
     document.addEventListener('visibilitychange', function() {
       if (document.visibilityState === 'visible' && isScanning) requestWakeLock();
@@ -1833,17 +1841,69 @@
       if (!audioCtx || audioCtx.state === 'closed') {
         audioCtx = new AudioCtx();
       }
-      if (audioCtx.state === 'suspended') {
+      if (audioCtx.state === 'suspended' || audioCtx.state === 'interrupted') {
         audioCtx.resume().catch(function() {});
       }
       return audioCtx;
     }
 
+    function buildWavDataUri(freq, durationMs, volume) {
+      const sampleRate = 22050;
+      const numSamples = Math.max(1, Math.floor(sampleRate * (durationMs / 1000)));
+      const buffer = new ArrayBuffer(44 + numSamples * 2);
+      const view = new DataView(buffer);
+      function writeStr(off, s) { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); }
+      writeStr(0, 'RIFF');
+      view.setUint32(4, 36 + numSamples * 2, true);
+      writeStr(8, 'WAVE');
+      writeStr(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeStr(36, 'data');
+      view.setUint32(40, numSamples * 2, true);
+      for (let i = 0; i < numSamples; i++) {
+        const env = Math.min(1, i / 80) * Math.min(1, (numSamples - i) / 140);
+        const sample = Math.sin(2 * Math.PI * freq * (i / sampleRate)) * (volume || 0.4) * env;
+        view.setInt16(44 + i * 2, Math.max(-32767, Math.min(32767, Math.round(sample * 32767))), true);
+      }
+      const bytes = new Uint8Array(buffer);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      return 'data:audio/wav;base64,' + btoa(bin);
+    }
+
+    function ensureWavCache() {
+      if (wavCache.ready) return;
+      try {
+        wavCache.silent = new Audio(buildWavDataUri(440, 20, 0));
+        wavCache.success = new Audio(buildWavDataUri(1760, 130, 0.55));
+        wavCache.unknown = new Audio(buildWavDataUri(420, 180, 0.5));
+        wavCache.saved = new Audio(buildWavDataUri(1175, 110, 0.4));
+        wavCache.tick = new Audio(buildWavDataUri(1200, 26, 0.22));
+        wavCache.ready = true;
+      } catch (e) {}
+    }
+
+    function playWavFallback(key) {
+      try {
+        ensureWavCache();
+        const a = wavCache[key];
+        if (!a) return;
+        a.currentTime = 0;
+        const p = a.play();
+        if (p && p.catch) p.catch(function() {});
+      } catch (e) {}
+    }
+
     function unlockAudio() {
       try {
         const ctx = getAudioCtx();
-        if (!ctx) return;
-        if (!audioUnlocked) {
+        if (ctx && !audioUnlocked) {
           const buf = ctx.createBuffer(1, 1, 22050);
           const src = ctx.createBufferSource();
           src.buffer = buf;
@@ -1851,14 +1911,36 @@
           src.start(0);
           audioUnlocked = true;
         }
+        ensureWavCache();
+        if (wavCache.silent && !wavCache.unlocked) {
+          wavCache.unlocked = true;
+          const p = wavCache.silent.play();
+          if (p && p.catch) p.catch(function() {});
+        }
       } catch (e) {}
+    }
+
+    function unlockVoice() {
+      try {
+        if (voiceUnlocked || !('speechSynthesis' in window)) return;
+        const u = new SpeechSynthesisUtterance(' ');
+        u.volume = 0;
+        u.rate = 2;
+        window.speechSynthesis.speak(u);
+        voiceUnlocked = true;
+      } catch (e) {}
+    }
+
+    function unlockAllMedia() {
+      unlockAudio();
+      unlockVoice();
     }
 
     function loadAudioSettings() {
       try {
         soundEnabled = localStorage.getItem(SOUND_KEY) !== '0';
         scanTickEnabled = localStorage.getItem(SCAN_TICK_KEY) !== '0';
-        voiceEnabled = localStorage.getItem(VOICE_KEY) === '1';
+        voiceEnabled = localStorage.getItem(VOICE_KEY) !== '0';
       } catch (e) {}
       const btn = document.getElementById('btn-sound');
       if (btn) btn.textContent = soundEnabled ? '🔊' : '🔇';
@@ -1869,14 +1951,19 @@
     }
 
     function saveAudioSettings() {
+      unlockAllMedia();
       const tickEl = document.getElementById('chk-scan-tick');
       const voiceEl = document.getElementById('chk-voice');
+      const wasVoice = voiceEnabled;
       scanTickEnabled = !!(tickEl && tickEl.checked);
       voiceEnabled = !!(voiceEl && voiceEl.checked);
       try {
         localStorage.setItem(SCAN_TICK_KEY, scanTickEnabled ? '1' : '0');
         localStorage.setItem(VOICE_KEY, voiceEnabled ? '1' : '0');
       } catch (e) {}
+      if (!wasVoice && voiceEnabled) {
+        speakText(t('voiceTest'));
+      }
       if (isScanning) {
         if (scanTickEnabled) startScanTickLoop();
         else stopScanTickLoop();
@@ -1884,7 +1971,7 @@
     }
 
     function toggleSound() {
-      unlockAudio();
+      unlockAllMedia();
       soundEnabled = !soundEnabled;
       try { localStorage.setItem(SOUND_KEY, soundEnabled ? '1' : '0'); } catch (e) {}
       const btn = document.getElementById('btn-sound');
@@ -1897,52 +1984,70 @@
       }
     }
 
-    function playTone(freq, startOffset, duration, type, peakGain) {
+    function playTone(freq, startOffset, duration, type, peakGain, wavFallbackKey) {
       if (!soundEnabled) return;
       try {
         const ctx = getAudioCtx();
-        if (!ctx) return;
-        const t = ctx.currentTime + (startOffset || 0);
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = type || 'sine';
-        osc.frequency.setValueAtTime(freq, t);
-        gain.gain.setValueAtTime(0.001, t);
-        gain.gain.exponentialRampToValueAtTime(peakGain || 0.25, t + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(t);
-        osc.stop(t + duration + 0.01);
-      } catch (e) {}
+        if (!ctx) {
+          if (wavFallbackKey) playWavFallback(wavFallbackKey);
+          return;
+        }
+        const scheduleOsc = function() {
+          const tNow = ctx.currentTime + (startOffset || 0);
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = type || 'sine';
+          osc.frequency.setValueAtTime(freq, tNow);
+          gain.gain.setValueAtTime(0.001, tNow);
+          gain.gain.exponentialRampToValueAtTime(peakGain || 0.3, tNow + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.001, tNow + duration);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(tNow);
+          osc.stop(tNow + duration + 0.01);
+        };
+
+        if (ctx.state === 'running') {
+          scheduleOsc();
+        } else {
+          ctx.resume().then(function() {
+            if (ctx.state === 'running') scheduleOsc();
+            else if (wavFallbackKey) playWavFallback(wavFallbackKey);
+          }).catch(function() {
+            if (wavFallbackKey) playWavFallback(wavFallbackKey);
+          });
+        }
+      } catch (e) {
+        if (wavFallbackKey) playWavFallback(wavFallbackKey);
+      }
     }
 
     function beepSuccess() {
       try { if (navigator.vibrate) navigator.vibrate(75); } catch (e) {}
-      playTone(1480, 0, 0.06, 'sine', 0.34);
-      playTone(1975, 0.06, 0.09, 'sine', 0.36);
+      playTone(1480, 0, 0.065, 'sine', 0.4, 'success');
+      playTone(1975, 0.065, 0.095, 'sine', 0.42);
     }
 
     function beepUnknown() {
       try { if (navigator.vibrate) navigator.vibrate([55, 45, 55]); } catch (e) {}
-      playTone(440, 0, 0.09, 'triangle', 0.28);
-      playTone(370, 0.12, 0.11, 'triangle', 0.28);
+      playTone(440, 0, 0.09, 'triangle', 0.34, 'unknown');
+      playTone(370, 0.12, 0.11, 'triangle', 0.34);
     }
 
     function beepSaved() {
-      playTone(880, 0, 0.055, 'sine', 0.18);
-      playTone(1318, 0.055, 0.085, 'sine', 0.2);
+      playTone(880, 0, 0.06, 'sine', 0.24, 'saved');
+      playTone(1318, 0.06, 0.09, 'sine', 0.26);
     }
 
     function beepScanTick() {
       if (!soundEnabled || !scanTickEnabled || !isScanning) return;
-      playTone(1050, 0, 0.018, 'sine', 0.045);
+      playTone(1200, 0, 0.025, 'sine', 0.11, 'tick');
     }
 
     function startScanTickLoop() {
       stopScanTickLoop();
       if (!soundEnabled || !scanTickEnabled || !isScanning) return;
-      scanTickTimer = setInterval(beepScanTick, 1400);
+      scanTickTimer = setInterval(beepScanTick, 1300);
     }
 
     function stopScanTickLoop() {
@@ -1956,11 +2061,19 @@
       if (!soundEnabled || !voiceEnabled || !text) return;
       try {
         if (!('speechSynthesis' in window)) return;
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(String(text));
-        u.lang = currentLang === 'pl' ? 'pl-PL' : 'ru-RU';
-        u.rate = 1.15;
-        window.speechSynthesis.speak(u);
+        const doSpeak = function() {
+          const u = new SpeechSynthesisUtterance(String(text));
+          u.lang = currentLang === 'pl' ? 'pl-PL' : 'ru-RU';
+          u.rate = 1.1;
+          u.volume = 1;
+          window.speechSynthesis.speak(u);
+        };
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+          window.speechSynthesis.cancel();
+          setTimeout(doSpeak, 60);
+        } else {
+          doSpeak();
+        }
       } catch (e) {}
     }
 
@@ -2104,7 +2217,7 @@
 
     /* Camera & Scanning */
     function toggleCamera() {
-      unlockAudio();
+      unlockAllMedia();
       if (isScanning) stopCamera();
       else startCamera();
     }
@@ -2142,6 +2255,9 @@
         video.srcObject = mediaStream;
         await video.play();
         setupCameraCapabilities();
+        // Re-resume Web Audio on iOS after getUserMedia activates camera session
+        getAudioCtx();
+        beepScanTick();
         startScanTickLoop();
         scheduleNextFrame();
       } catch (err) {
@@ -2363,27 +2479,37 @@
 
     function onBarcodeDetected(code) {
       const baseLocal = findInCatalogLocal(code);
-      if (baseLocal.found || catalogCache.length === 0) {
-        beepSuccess();
-        if (voiceEnabled && baseLocal.name) speakText(baseLocal.name);
-      } else {
-        beepUnknown();
-        if (voiceEnabled) speakText(t('voiceNotInBase'));
-      }
+      const isKnown = baseLocal.found || catalogCache.length === 0;
+      if (isKnown) beepSuccess();
+      else beepUnknown();
 
-      if (isQuickFlowEnabled()) quickAddBarcode(code);
-      else openProductFromCacheOrServer(code);
+      if (isQuickFlowEnabled()) {
+        quickAddBarcode(code, baseLocal);
+      } else {
+        if (voiceEnabled) {
+          if (baseLocal.found && baseLocal.name) speakText(baseLocal.name);
+          else if (!baseLocal.found && catalogCache.length > 0) speakText(t('voiceNotInBase'));
+          else speakText(t('voiceScanned'));
+        }
+        openProductFromCacheOrServer(code);
+      }
     }
 
     /* Quick Flow (+1) & Undo */
-    function quickAddBarcode(barcode) {
+    function quickAddBarcode(barcode, preloadedBase) {
       if (!currentUser) return;
       const bc = String(barcode).trim();
-      const baseLocal = findInCatalogLocal(bc);
+      const baseLocal = preloadedBase || findInCatalogLocal(bc);
       const userLocal = findInUserLocal(bc);
       const prevFact = (userLocal.found && userLocal.factQty !== null) ? userLocal.factQty : 0;
       const delta = currentOpType === 'out' ? -1 : 1;
       const nextFact = Math.max(0, Math.round((prevFact + delta) * 1000) / 1000);
+
+      if (voiceEnabled) {
+        if (baseLocal.found && baseLocal.name) speakText(baseLocal.name + ', ' + nextFact);
+        else if (!baseLocal.found && catalogCache.length > 0) speakText(t('voiceNotInBase') + ', ' + nextFact);
+        else speakText(t('voiceQty', { n: nextFact }));
+      }
 
       // Optimistic local update
       upsertLocalUserItem(bc, baseLocal.name || userLocal.name || '', baseLocal.expectedQty, nextFact);
