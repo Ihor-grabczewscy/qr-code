@@ -804,7 +804,7 @@
 
   <header class="app-header">
     <div class="header-title">
-      <span><span data-i18n="appTitle">Сканер товаров</span> <small style="font-weight:500; opacity:0.65; font-size:11px;">v2.6</small></span>
+      <span><span data-i18n="appTitle">Сканер товаров</span> <small style="font-weight:500; opacity:0.65; font-size:11px;">v2.7</small></span>
       <span class="header-sub" id="header-user-label">Не выбран пользователь</span>
     </div>
     <div class="header-actions">
@@ -874,6 +874,10 @@
         </div>
 
         <label class="check-row">
+          <input type="checkbox" id="chk-auto-resume" onchange="saveAudioSettings()">
+          <span data-i18n="autoResumeLabel">📷 Продолжать камеру после сохранения</span>
+        </label>
+        <label class="check-row">
           <input type="checkbox" id="chk-scan-tick" onchange="saveAudioSettings()">
           <span data-i18n="scanTickLabel">⏱ Тихий «тик» пока ищет камера</span>
         </label>
@@ -921,6 +925,7 @@
         <div class="cam-tools hidden" id="cam-tools">
           <button type="button" class="cam-tool-btn hidden" id="btn-torch" onclick="toggleTorch()">🔦 Свет</button>
           <button type="button" class="cam-tool-btn hidden" id="btn-zoom" onclick="toggleZoom()">🔍 1x</button>
+          <button type="button" class="cam-tool-btn hidden" id="btn-switch-lens" onclick="switchCameraLens()">🔄 1/1</button>
         </div>
 
         <div class="btn-row">
@@ -1026,7 +1031,7 @@
 
       <div class="sheet-actions">
         <button type="button" class="btn btn-danger-icon hidden" id="btn-delete-scan" onclick="deleteCurrentProduct()" title="Удалить">🗑</button>
-        <button type="button" class="btn btn-outline" onclick="closeProductCard()" data-i18n="btnCancel">Отмена</button>
+        <button type="button" class="btn btn-outline" onclick="closeProductCard(true)" data-i18n="btnCancel">Отмена</button>
         <button type="button" class="btn btn-primary" onclick="saveCurrentProduct()" data-i18n="btnSave">Сохранить</button>
       </div>
     </div>
@@ -1101,7 +1106,9 @@
         locGreenhouse: 'Теплица 1',
         locYard: 'Площадка',
         scanTickLabel: '⏱ Тихий «тик» пока ищет камера',
+        autoResumeLabel: '📷 Продолжать камеру после сохранения',
         voiceLabel: '🗣 Озвучивать результат голосом',
+        lensSwitched: '📷 Камера {idx}/{total}',
         btnSync: '🔄 Синхр. Базу',
         btnSwitchUser: '👤 Сменить №',
         progressText: 'Проверено по Базе: {m} из {t}',
@@ -1220,7 +1227,9 @@
         locGreenhouse: 'Szklarnia 1',
         locYard: 'Plac',
         scanTickLabel: '⏱ Ciche „pik” podczas skanowania',
+        autoResumeLabel: '📷 Wznawiaj kamerę po zapisie',
         voiceLabel: '🗣 Czytaj wynik głosowo',
+        lensSwitched: '📷 Obiektyw {idx}/{total}',
         btnSync: '🔄 Odśwież bazę',
         btnSwitchUser: '👤 Zmień nr',
         progressText: 'Sprawdzono z Bazy: {m} z {t}',
@@ -1329,6 +1338,10 @@
     let scanCtx = null;
     let wakeLockObj = null;
     let isScanning = false;
+    let autoResumeCam = true;
+    let pendingCameraResume = false;
+    let rearCameras = [];
+    let selectedCamId = '';
     let lastScanText = '';
     let lastScanTime = 0;
     let lastQuickUndo = null;
@@ -1941,6 +1954,8 @@
         soundEnabled = localStorage.getItem(SOUND_KEY) !== '0';
         scanTickEnabled = localStorage.getItem(SCAN_TICK_KEY) !== '0';
         voiceEnabled = localStorage.getItem(VOICE_KEY) !== '0';
+        autoResumeCam = localStorage.getItem('barcode_app_autoresume_v1') !== '0';
+        selectedCamId = localStorage.getItem('barcode_app_cam_id_v1') || '';
       } catch (e) {}
       const btn = document.getElementById('btn-sound');
       if (btn) btn.textContent = soundEnabled ? '🔊' : '🔇';
@@ -1948,18 +1963,23 @@
       if (tickEl) tickEl.checked = scanTickEnabled;
       const voiceEl = document.getElementById('chk-voice');
       if (voiceEl) voiceEl.checked = voiceEnabled;
+      const resumeEl = document.getElementById('chk-auto-resume');
+      if (resumeEl) resumeEl.checked = autoResumeCam;
     }
 
     function saveAudioSettings() {
       unlockAllMedia();
       const tickEl = document.getElementById('chk-scan-tick');
       const voiceEl = document.getElementById('chk-voice');
+      const resumeEl = document.getElementById('chk-auto-resume');
       const wasVoice = voiceEnabled;
       scanTickEnabled = !!(tickEl && tickEl.checked);
       voiceEnabled = !!(voiceEl && voiceEl.checked);
+      autoResumeCam = resumeEl ? !!resumeEl.checked : true;
       try {
         localStorage.setItem(SCAN_TICK_KEY, scanTickEnabled ? '1' : '0');
         localStorage.setItem(VOICE_KEY, voiceEnabled ? '1' : '0');
+        localStorage.setItem('barcode_app_autoresume_v1', autoResumeCam ? '1' : '0');
       } catch (e) {}
       if (!wasVoice && voiceEnabled) {
         speakText(t('voiceTest'));
@@ -2246,15 +2266,29 @@
 
       try {
         await ZXingWASM.prepareZXingModule();
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-          audio: false
-        });
+        const videoConstraints = selectedCamId
+          ? { deviceId: { exact: selectedCamId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+          : { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } };
+        try {
+          mediaStream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
+        } catch (camErr) {
+          if (selectedCamId) {
+            selectedCamId = '';
+            try { localStorage.removeItem('barcode_app_cam_id_v1'); } catch (e) {}
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+              audio: false
+            });
+          } else {
+            throw camErr;
+          }
+        }
 
         if (!isScanning) { stopCamera(); return; }
         video.srcObject = mediaStream;
         await video.play();
         setupCameraCapabilities();
+        loadRearCameras();
         // Re-resume Web Audio on iOS after getUserMedia activates camera session
         getAudioCtx();
         beepScanTick();
@@ -2307,9 +2341,54 @@
       const tools = document.getElementById('cam-tools');
       const btnTorch = document.getElementById('btn-torch');
       const btnZoom = document.getElementById('btn-zoom');
+      const btnLens = document.getElementById('btn-switch-lens');
       if (tools) tools.classList.add('hidden');
       if (btnTorch) { btnTorch.classList.add('hidden'); btnTorch.classList.remove('active'); btnTorch.textContent = t('torchOff'); }
       if (btnZoom) { btnZoom.classList.add('hidden'); btnZoom.classList.remove('active'); btnZoom.textContent = '🔍 1x'; }
+      if (btnLens) { btnLens.classList.add('hidden'); }
+    }
+
+    async function loadRearCameras() {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videos = devices.filter(function(d) { return d.kind === 'videoinput'; });
+        const rear = videos.filter(function(d) {
+          return !/front|user|facetime|przedni|передн/i.test(d.label || '');
+        });
+        rearCameras = rear.length > 0 ? rear : videos;
+
+        const btnLens = document.getElementById('btn-switch-lens');
+        const tools = document.getElementById('cam-tools');
+        if (!btnLens || rearCameras.length <= 1) return;
+
+        const track = mediaStream && mediaStream.getVideoTracks()[0];
+        const activeId = (track && track.getSettings && track.getSettings().deviceId) || selectedCamId;
+        let idx = rearCameras.findIndex(function(d) { return d.deviceId === activeId; });
+        if (idx < 0) idx = 0;
+
+        btnLens.textContent = '🔄 ' + (idx + 1) + '/' + rearCameras.length;
+        btnLens.classList.remove('hidden');
+        if (tools) tools.classList.remove('hidden');
+      } catch (e) {}
+    }
+
+    function switchCameraLens() {
+      unlockAllMedia();
+      if (!rearCameras || rearCameras.length <= 1) return;
+      const track = mediaStream && mediaStream.getVideoTracks()[0];
+      const activeId = (track && track.getSettings && track.getSettings().deviceId) || selectedCamId;
+      let idx = rearCameras.findIndex(function(d) { return d.deviceId === activeId; });
+      if (idx < 0) idx = 0;
+      const nextIdx = (idx + 1) % rearCameras.length;
+      const nextCam = rearCameras[nextIdx];
+
+      selectedCamId = nextCam.deviceId;
+      try { localStorage.setItem('barcode_app_cam_id_v1', selectedCamId); } catch (e) {}
+      showToast(t('lensSwitched', { idx: nextIdx + 1, total: rearCameras.length }));
+
+      stopCamera();
+      setTimeout(startCamera, 120);
     }
 
     function toggleTorch() {
@@ -2472,6 +2551,7 @@
       lastScanTime = now;
 
       if (!isQuickFlowEnabled()) {
+        pendingCameraResume = autoResumeCam;
         stopCamera();
       }
       onBarcodeDetected(decodedText);
@@ -2730,9 +2810,14 @@
       document.getElementById('sheet-backdrop').classList.remove('hidden');
     }
 
-    function closeProductCard() {
+    function closeProductCard(fromAction) {
       document.getElementById('sheet-backdrop').classList.add('hidden');
       showAlert('product-error', '');
+      const shouldResume = !!(fromAction && pendingCameraResume && autoResumeCam);
+      pendingCameraResume = false;
+      if (shouldResume) {
+        setTimeout(startCamera, 180);
+      }
     }
 
     function updateDiffPreview() {
@@ -2833,7 +2918,7 @@
       }
 
       document.getElementById('manual-barcode').value = '';
-      closeProductCard();
+      closeProductCard(true);
       beepSaved();
       showToast(t('savedToast', { bc: barcode, qty: optimisticFact }));
 
@@ -2880,7 +2965,7 @@
           if (res.userItems) saveUserItemsCache(res.userItems);
           if (res.recent) { recentItems = res.recent; renderActiveList(); }
           document.getElementById('manual-barcode').value = '';
-          closeProductCard();
+          closeProductCard(true);
           showToast(t('deletedToast', { bc: barcode }));
         },
         function(err) {
