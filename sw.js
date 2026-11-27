@@ -1,4 +1,4 @@
-const CACHE_NAME = 'scanner-pwa-v2.7';
+const CACHE_NAME = 'scanner-pwa-v2.8';
 const APP_SHELL = [
   './',
   './index.html',

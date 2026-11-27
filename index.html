@@ -430,6 +430,25 @@
       50% { opacity: 0.3; }
     }
 
+    .focus-ring {
+      position: absolute;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 2px solid #facc15;
+      box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.45);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 1000;
+      animation: focus-pop 0.65s ease-out forwards;
+    }
+
+    @keyframes focus-pop {
+      0% { transform: translate(-50%, -50%) scale(1.35); opacity: 1; }
+      60% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.95; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+    }
+
     .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .cam-tools { display: flex; gap: 8px; margin-bottom: 8px; }
 
@@ -804,7 +823,7 @@
 
   <header class="app-header">
     <div class="header-title">
-      <span><span data-i18n="appTitle">Сканер товаров</span> <small style="font-weight:500; opacity:0.65; font-size:11px;">v2.7</small></span>
+      <span><span data-i18n="appTitle">Сканер товаров</span> <small style="font-weight:500; opacity:0.65; font-size:11px;">v2.8</small></span>
       <span class="header-sub" id="header-user-label">Не выбран пользователь</span>
     </div>
     <div class="header-actions">
@@ -885,6 +904,10 @@
           <input type="checkbox" id="chk-voice" onchange="saveAudioSettings()">
           <span data-i18n="voiceLabel">🗣 Озвучивать результат голосом</span>
         </label>
+        <label class="check-row">
+          <input type="checkbox" id="chk-all-formats" onchange="saveAudioSettings()">
+          <span data-i18n="allFormatsLabel">🎯 Все форматы кодов (вкл. редкие)</span>
+        </label>
 
         <div class="btn-row">
           <button type="button" class="btn btn-secondary btn-sm" style="width:100%;" onclick="syncCatalogAndUser(true)" data-i18n="btnSync">🔄 Синхр. Базу</button>
@@ -909,7 +932,7 @@
 
       <!-- Блок сканирования -->
       <div class="card" id="scanner-card">
-        <div class="scanner-box" id="scanner-box">
+        <div class="scanner-box" id="scanner-box" onclick="refocusCamera(event)">
           <video id="cam-video" playsinline muted autoplay></video>
           <div class="scan-overlay" aria-hidden="true">
             <div class="scan-badge"><span class="scan-dot"></span><span data-i18n="scanningBadge">Идёт сканирование</span></div>
@@ -917,6 +940,7 @@
               <div class="scan-laser"></div>
             </div>
           </div>
+          <div id="focus-ring" class="focus-ring hidden" aria-hidden="true"></div>
           <div id="scanner-placeholder" class="scanner-placeholder" data-i18n="scannerPlaceholder">
             Нажмите «Камера» для сканирования или «По фото»
           </div>
@@ -1108,6 +1132,7 @@
         scanTickLabel: '⏱ Тихий «тик» пока ищет камера',
         autoResumeLabel: '📷 Продолжать камеру после сохранения',
         voiceLabel: '🗣 Озвучивать результат голосом',
+        allFormatsLabel: '🎯 Все форматы кодов (вкл. редкие)',
         lensSwitched: '📷 Камера {idx}/{total}',
         btnSync: '🔄 Синхр. Базу',
         btnSwitchUser: '👤 Сменить №',
@@ -1229,6 +1254,7 @@
         scanTickLabel: '⏱ Ciche „pik” podczas skanowania',
         autoResumeLabel: '📷 Wznawiaj kamerę po zapisie',
         voiceLabel: '🗣 Czytaj wynik głosowo',
+        allFormatsLabel: '🎯 Wszystkie formaty kodów (też rzadkie)',
         lensSwitched: '📷 Obiektyw {idx}/{total}',
         btnSync: '🔄 Odśwież bazę',
         btnSwitchUser: '👤 Zmień nr',
@@ -1327,6 +1353,7 @@
     let soundEnabled = true;
     let scanTickEnabled = true;
     let voiceEnabled = true;
+    let allFormatsEnabled = false;
     let audioCtx = null;
     let audioUnlocked = false;
     let voiceUnlocked = false;
@@ -1338,6 +1365,9 @@
     let scanCtx = null;
     let wakeLockObj = null;
     let isScanning = false;
+    let cameraPausedWarm = false;
+    let warmPauseTimer = null;
+    let scanFrameCount = 0;
     let autoResumeCam = true;
     let pendingCameraResume = false;
     let rearCameras = [];
@@ -1351,26 +1381,58 @@
     let isFlushingOffline = false;
     let hidBuffer = '';
     let hidLastTime = 0;
+    let nativeBarcodeDetector = null;
+    let nativeDetectorKey = '';
+    let nativeDetectorPromise = null;
+    let zxingWorker = null;
+    let zxingWorkerFailed = false;
+    let workerReqId = 0;
+    let workerPending = null;
+    let focusRestoreTimer = null;
 
-    const ZXING_LIVE_OPTIONS = {
-      formats: ['Linear-Codes', 'QRCode', 'DataMatrix'],
-      tryHarder: true,
-      tryRotate: true,
-      tryInvert: true,
-      tryDownscale: true,
-      minLineCount: 3,
-      maxNumberOfSymbols: 1
-    };
+    const ZXING_CDN_URL = 'https://cdn.jsdelivr.net/npm/zxing-wasm@2.1.0/dist/iife/reader/index.js';
+    const ZXING_FAST_FORMATS = ['EAN-13', 'EAN-8', 'UPC-A', 'UPC-E', 'Code128', 'Code39', 'ITF', 'QRCode', 'DataMatrix'];
+    const ZXING_ALL_FORMATS = ['Linear-Codes', 'QRCode', 'DataMatrix'];
+    const NATIVE_FAST_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf', 'qr_code', 'data_matrix'];
 
-    const ZXING_PHOTO_OPTIONS = {
-      formats: ['Linear-Codes', 'QRCode', 'DataMatrix'],
-      tryHarder: true,
-      tryRotate: true,
-      tryInvert: true,
-      tryDownscale: true,
-      minLineCount: 2,
-      maxNumberOfSymbols: 1
-    };
+    function getActiveFormats() {
+      return allFormatsEnabled ? ZXING_ALL_FORMATS : ZXING_FAST_FORMATS;
+    }
+
+    function getLiveScanOptions(isDeep) {
+      if (isDeep) {
+        return {
+          formats: getActiveFormats(),
+          tryHarder: true,
+          tryRotate: true,
+          tryInvert: true,
+          tryDownscale: true,
+          minLineCount: 3,
+          maxNumberOfSymbols: 1
+        };
+      }
+      return {
+        formats: getActiveFormats(),
+        tryHarder: true,
+        tryRotate: false,
+        tryInvert: false,
+        tryDownscale: false,
+        minLineCount: 2,
+        maxNumberOfSymbols: 1
+      };
+    }
+
+    function getPhotoScanOptions() {
+      return {
+        formats: getActiveFormats(),
+        tryHarder: true,
+        tryRotate: true,
+        tryInvert: true,
+        tryDownscale: true,
+        minLineCount: 2,
+        maxNumberOfSymbols: 1
+      };
+    }
 
     window.addEventListener('DOMContentLoaded', initApp);
     window.addEventListener('click', unlockAllMedia, { passive: true });
@@ -1486,6 +1548,8 @@
       if (typeof ZXingWASM !== 'undefined') {
         ZXingWASM.prepareZXingModule().catch(function() {});
       }
+      initZxingWorker();
+      ensureNativeDetector();
       if (!isInsideAppsScript() && !getExternalApiUrl()) {
         document.getElementById('view-login').classList.add('hidden');
         document.getElementById('view-api-setup').classList.remove('hidden');
@@ -1955,6 +2019,7 @@
         scanTickEnabled = localStorage.getItem(SCAN_TICK_KEY) !== '0';
         voiceEnabled = localStorage.getItem(VOICE_KEY) !== '0';
         autoResumeCam = localStorage.getItem('barcode_app_autoresume_v1') !== '0';
+        allFormatsEnabled = localStorage.getItem('barcode_app_all_formats_v1') === '1';
         selectedCamId = localStorage.getItem('barcode_app_cam_id_v1') || '';
       } catch (e) {}
       const btn = document.getElementById('btn-sound');
@@ -1965,6 +2030,8 @@
       if (voiceEl) voiceEl.checked = voiceEnabled;
       const resumeEl = document.getElementById('chk-auto-resume');
       if (resumeEl) resumeEl.checked = autoResumeCam;
+      const fmtEl = document.getElementById('chk-all-formats');
+      if (fmtEl) fmtEl.checked = allFormatsEnabled;
     }
 
     function saveAudioSettings() {
@@ -1972,15 +2039,24 @@
       const tickEl = document.getElementById('chk-scan-tick');
       const voiceEl = document.getElementById('chk-voice');
       const resumeEl = document.getElementById('chk-auto-resume');
+      const fmtEl = document.getElementById('chk-all-formats');
       const wasVoice = voiceEnabled;
+      const prevFormats = allFormatsEnabled;
       scanTickEnabled = !!(tickEl && tickEl.checked);
       voiceEnabled = !!(voiceEl && voiceEl.checked);
       autoResumeCam = resumeEl ? !!resumeEl.checked : true;
+      allFormatsEnabled = !!(fmtEl && fmtEl.checked);
       try {
         localStorage.setItem(SCAN_TICK_KEY, scanTickEnabled ? '1' : '0');
         localStorage.setItem(VOICE_KEY, voiceEnabled ? '1' : '0');
         localStorage.setItem('barcode_app_autoresume_v1', autoResumeCam ? '1' : '0');
+        localStorage.setItem('barcode_app_all_formats_v1', allFormatsEnabled ? '1' : '0');
       } catch (e) {}
+      if (prevFormats !== allFormatsEnabled) {
+        nativeDetectorKey = '';
+        nativeBarcodeDetector = null;
+        ensureNativeDetector();
+      }
       if (!wasVoice && voiceEnabled) {
         speakText(t('voiceTest'));
       }
@@ -2242,6 +2318,140 @@
       else startCamera();
     }
 
+    async function ensureNativeDetector() {
+      const key = allFormatsEnabled ? 'all' : 'fast';
+      if (nativeDetectorKey === key && (nativeBarcodeDetector || nativeDetectorPromise)) {
+        return nativeDetectorPromise || nativeBarcodeDetector;
+      }
+      nativeDetectorKey = key;
+      nativeBarcodeDetector = null;
+
+      if (typeof window.BarcodeDetector === 'undefined') return null;
+
+      nativeDetectorPromise = (async function() {
+        try {
+          let supported = [];
+          if (typeof window.BarcodeDetector.getSupportedFormats === 'function') {
+            supported = await window.BarcodeDetector.getSupportedFormats();
+          }
+          let formats = [];
+          if (allFormatsEnabled) {
+            formats = supported && supported.length ? supported : NATIVE_FAST_FORMATS;
+          } else {
+            formats = (supported && supported.length)
+              ? NATIVE_FAST_FORMATS.filter(function(f) { return supported.indexOf(f) !== -1; })
+              : NATIVE_FAST_FORMATS;
+          }
+          if (!formats.length) return null;
+          const det = new window.BarcodeDetector({ formats: formats });
+          if (nativeDetectorKey === key) nativeBarcodeDetector = det;
+          return det;
+        } catch (e) {
+          return null;
+        }
+      })();
+      return nativeDetectorPromise;
+    }
+
+    function clearPendingWorker(err) {
+      if (workerPending) {
+        const p = workerPending;
+        workerPending = null;
+        clearTimeout(p.timer);
+        if (err) p.reject(err);
+        else p.resolve('');
+      }
+    }
+
+    function initZxingWorker() {
+      if (zxingWorker || zxingWorkerFailed) return;
+      if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) {
+        zxingWorkerFailed = true;
+        return;
+      }
+      try {
+        const workerLines = [
+          "importScripts('" + ZXING_CDN_URL + "');",
+          "var zxingReady = null;",
+          "self.onmessage = async function(ev) {",
+          "  var d = ev.data || {};",
+          "  try {",
+          "    if (typeof ZXingWASM === 'undefined') throw new Error('ZXingWASM missing');",
+          "    if (!zxingReady) zxingReady = ZXingWASM.prepareZXingModule();",
+          "    await zxingReady;",
+          "    var imgData = new ImageData(new Uint8ClampedArray(d.buffer), d.width, d.height);",
+          "    var res = await ZXingWASM.readBarcodesFromImageData(imgData, d.options);",
+          "    self.postMessage({ id: d.id, text: (res && res[0] && res[0].text) ? res[0].text : '' });",
+          "  } catch (err) {",
+          "    self.postMessage({ id: d.id, text: '', error: String((err && err.message) || err) });",
+          "  }",
+          "};"
+        ];
+        const blob = new Blob([workerLines.join('\n')], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        zxingWorker = new Worker(url);
+        URL.revokeObjectURL(url);
+
+        zxingWorker.onmessage = function(ev) {
+          const msg = ev.data || {};
+          if (!workerPending || msg.id !== workerPending.id) return;
+          const p = workerPending;
+          workerPending = null;
+          clearTimeout(p.timer);
+          if (msg.error) {
+            p.reject(new Error(msg.error));
+          } else {
+            p.resolve(msg.text || '');
+          }
+        };
+        zxingWorker.onerror = function() {
+          zxingWorkerFailed = true;
+          clearPendingWorker(new Error('worker error'));
+          try { zxingWorker.terminate(); } catch (e) {}
+          zxingWorker = null;
+        };
+      } catch (e) {
+        zxingWorkerFailed = true;
+        zxingWorker = null;
+      }
+    }
+
+    async function decodeWithZxing(imageData, options) {
+      if (!zxingWorkerFailed && !zxingWorker) initZxingWorker();
+      if (zxingWorker && !zxingWorkerFailed) {
+        try {
+          const text = await new Promise(function(resolve, reject) {
+            clearPendingWorker(new Error('superseded'));
+            const id = ++workerReqId;
+            const timeoutMs = id === 1 ? 4500 : 1800;
+            const timer = setTimeout(function() {
+              if (workerPending && workerPending.id === id) {
+                workerPending = null;
+                reject(new Error('worker timeout'));
+              }
+            }, timeoutMs);
+            workerPending = { id: id, resolve: resolve, reject: reject, timer: timer };
+            const buf = imageData.data.buffer;
+            zxingWorker.postMessage(
+              { id: id, buffer: buf, width: imageData.width, height: imageData.height, options: options },
+              [buf]
+            );
+          });
+          return text;
+        } catch (err) {
+          const msg = String((err && err.message) || err);
+          if (msg !== 'superseded') {
+            zxingWorkerFailed = true;
+            try { if (zxingWorker) zxingWorker.terminate(); } catch (e) {}
+            zxingWorker = null;
+          }
+          return '';
+        }
+      }
+      const results = await ZXingWASM.readBarcodesFromImageData(imageData, options);
+      return (results && results.length > 0 && results[0].text) ? results[0].text : '';
+    }
+
     async function startCamera() {
       showAlert('camera-alert', '');
       if (typeof ZXingWASM === 'undefined') {
@@ -2253,6 +2463,13 @@
         return;
       }
 
+      if (warmPauseTimer) { clearTimeout(warmPauseTimer); warmPauseTimer = null; }
+      cameraPausedWarm = false;
+      if (mediaStream) {
+        try { mediaStream.getTracks().forEach(function(tr) { tr.stop(); }); } catch (e) {}
+        mediaStream = null;
+      }
+
       const box = document.getElementById('scanner-box');
       const video = document.getElementById('cam-video');
       const placeholder = document.getElementById('scanner-placeholder');
@@ -2261,14 +2478,17 @@
       placeholder.classList.add('hidden');
       btn.textContent = t('btnCamStop');
       isScanning = true;
+      scanFrameCount = 0;
       box.classList.add('active-scan');
       requestWakeLock();
 
       try {
+        initZxingWorker();
+        ensureNativeDetector();
         await ZXingWASM.prepareZXingModule();
         const videoConstraints = selectedCamId
-          ? { deviceId: { exact: selectedCamId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
-          : { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } };
+          ? { deviceId: { exact: selectedCamId }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } }
+          : { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } };
         try {
           mediaStream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
         } catch (camErr) {
@@ -2276,7 +2496,7 @@
             selectedCamId = '';
             try { localStorage.removeItem('barcode_app_cam_id_v1'); } catch (e) {}
             mediaStream = await navigator.mediaDevices.getUserMedia({
-              video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+              video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
               audio: false
             });
           } else {
@@ -2293,7 +2513,7 @@
         getAudioCtx();
         beepScanTick();
         startScanTickLoop();
-        scheduleNextFrame();
+        scheduleNextFrame(25);
       } catch (err) {
         stopCamera();
         const msg = String(err && (err.name || err.message || err) || '');
@@ -2421,12 +2641,66 @@
       } catch (e) {}
     }
 
-    function scheduleNextFrame() {
-      if (!isScanning) return;
-      scanTimer = setTimeout(scanCurrentVideoFrame, 110);
+    function hideFocusRing() {
+      const ring = document.getElementById('focus-ring');
+      if (ring) ring.classList.add('hidden');
     }
 
-    function getScanCropRect(video) {
+    function refocusCamera(event) {
+      if (!isScanning || !mediaStream) return;
+      const box = document.getElementById('scanner-box');
+      const ring = document.getElementById('focus-ring');
+      let nx = 0.5;
+      let ny = 0.5;
+      if (box && event && typeof event.clientX === 'number') {
+        const rect = box.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          const lx = Math.max(24, Math.min(rect.width - 24, event.clientX - rect.left));
+          const ly = Math.max(24, Math.min(rect.height - 24, event.clientY - rect.top));
+          nx = Math.max(0.05, Math.min(0.95, lx / rect.width));
+          ny = Math.max(0.05, Math.min(0.95, ly / rect.height));
+          if (ring) {
+            ring.style.left = lx + 'px';
+            ring.style.top = ly + 'px';
+            ring.classList.remove('hidden');
+            ring.style.animation = 'none';
+            void ring.offsetWidth;
+            ring.style.animation = '';
+          }
+        }
+      }
+
+      if (focusRestoreTimer) clearTimeout(focusRestoreTimer);
+      focusRestoreTimer = setTimeout(function() {
+        hideFocusRing();
+        try {
+          const tr = mediaStream && mediaStream.getVideoTracks()[0];
+          if (tr && tr.applyConstraints) {
+            tr.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function() {});
+          }
+        } catch (e) {}
+      }, 650);
+
+      try {
+        const track = mediaStream && mediaStream.getVideoTracks()[0];
+        if (!track || !track.applyConstraints) return;
+        track.applyConstraints({ advanced: [{ focusMode: 'single-shot', pointsOfInterest: [{ x: nx, y: ny }] }] })
+          .catch(function() {
+            track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] })
+              .catch(function() {
+                track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function() {});
+              });
+          });
+      } catch (e) {}
+    }
+
+    function scheduleNextFrame(delayMs) {
+      if (!isScanning) return;
+      if (scanTimer) clearTimeout(scanTimer);
+      scanTimer = setTimeout(scanCurrentVideoFrame, typeof delayMs === 'number' ? delayMs : 25);
+    }
+
+    function getScanCropRect(video, isDeep) {
       const vw = video.videoWidth;
       const vh = video.videoHeight;
       const box = document.getElementById('scanner-box');
@@ -2439,8 +2713,9 @@
       const ox = (vw - visW) / 2;
       const oy = (vh - visH) / 2;
 
-      const frameW = visW * 0.90;
-      const frameH = Math.min(visH, (170 / bh) * visH);
+      const frameW = visW * (isDeep ? 0.92 : 0.90);
+      const cropPxH = isDeep ? 250 : 170;
+      const frameH = Math.min(visH, (cropPxH / bh) * visH);
       const sx = Math.max(0, Math.floor(ox + (visW - frameW) / 2));
       const sy = Math.max(0, Math.floor(oy + (visH - frameH) / 2));
       return {
@@ -2455,13 +2730,17 @@
       if (!isScanning) return;
       const video = document.getElementById('cam-video');
       if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
-        scheduleNextFrame();
+        scheduleNextFrame(35);
         return;
       }
 
+      const isDeep = (scanFrameCount % 4 === 3);
+      scanFrameCount++;
+
       try {
-        const crop = getScanCropRect(video);
-        const downscale = crop.sw > 1280 ? (1280 / crop.sw) : 1;
+        const crop = getScanCropRect(video, isDeep);
+        const maxW = isDeep ? 1280 : 880;
+        const downscale = crop.sw > maxW ? (maxW / crop.sw) : 1;
         const cw = Math.max(16, Math.round(crop.sw * downscale));
         const ch = Math.max(16, Math.round(crop.sh * downscale));
 
@@ -2475,23 +2754,106 @@
         }
 
         scanCtx.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, cw, ch);
+
+        if (nativeBarcodeDetector) {
+          try {
+            const nativeRes = await nativeBarcodeDetector.detect(scanCanvas);
+            if (!isScanning) return;
+            if (nativeRes && nativeRes.length > 0 && nativeRes[0].rawValue) {
+              onScanSuccess(nativeRes[0].rawValue);
+              if (!isScanning) return;
+            }
+          } catch (nativeErr) {}
+        }
+
         const imageData = scanCtx.getImageData(0, 0, cw, ch);
-        const results = await ZXingWASM.readBarcodesFromImageData(imageData, ZXING_LIVE_OPTIONS);
+        const decodedText = await decodeWithZxing(imageData, getLiveScanOptions(isDeep));
 
         if (!isScanning) return;
-        if (results && results.length > 0 && results[0].text) {
-          onScanSuccess(results[0].text);
+        if (decodedText) {
+          onScanSuccess(decodedText);
           if (!isScanning) return;
         }
       } catch (e) {}
 
-      scheduleNextFrame();
+      scheduleNextFrame(25);
+    }
+
+    function pauseCameraForModal() {
+      if (!mediaStream) {
+        stopCamera();
+        return;
+      }
+      isScanning = false;
+      cameraPausedWarm = true;
+      stopScanTickLoop();
+      releaseWakeLock();
+      hideFocusRing();
+      if (focusRestoreTimer) { clearTimeout(focusRestoreTimer); focusRestoreTimer = null; }
+      if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
+      if (warmPauseTimer) clearTimeout(warmPauseTimer);
+
+      const box = document.getElementById('scanner-box');
+      const video = document.getElementById('cam-video');
+      const btn = document.getElementById('btn-toggle-cam');
+      const placeholder = document.getElementById('scanner-placeholder');
+
+      if (box) box.classList.remove('active-scan');
+      if (btn) btn.textContent = t('btnCamStart');
+      if (placeholder) placeholder.classList.remove('hidden');
+      if (video) { try { video.pause(); } catch (e) {} }
+
+      warmPauseTimer = setTimeout(function() {
+        if (cameraPausedWarm && !isScanning) stopCamera();
+      }, 45000);
+    }
+
+    async function resumeCameraFromModal() {
+      if (warmPauseTimer) { clearTimeout(warmPauseTimer); warmPauseTimer = null; }
+      const hasLiveTrack = !!(mediaStream && mediaStream.getVideoTracks().some(function(tr) {
+        return tr.readyState === 'live';
+      }));
+      if (!cameraPausedWarm || !hasLiveTrack) {
+        cameraPausedWarm = false;
+        startCamera();
+        return;
+      }
+
+      cameraPausedWarm = false;
+      const box = document.getElementById('scanner-box');
+      const video = document.getElementById('cam-video');
+      const btn = document.getElementById('btn-toggle-cam');
+      const placeholder = document.getElementById('scanner-placeholder');
+
+      if (placeholder) placeholder.classList.add('hidden');
+      if (btn) btn.textContent = t('btnCamStop');
+      isScanning = true;
+      scanFrameCount = 0;
+      lastScanTime = Date.now();
+      if (box) box.classList.add('active-scan');
+      requestWakeLock();
+
+      try {
+        if (video) {
+          if (video.srcObject !== mediaStream) video.srcObject = mediaStream;
+          await video.play();
+        }
+        startScanTickLoop();
+        scheduleNextFrame(25);
+      } catch (e) {
+        startCamera();
+      }
     }
 
     function stopCamera() {
       isScanning = false;
+      cameraPausedWarm = false;
+      if (warmPauseTimer) { clearTimeout(warmPauseTimer); warmPauseTimer = null; }
+      if (focusRestoreTimer) { clearTimeout(focusRestoreTimer); focusRestoreTimer = null; }
+      hideFocusRing();
       stopScanTickLoop();
       releaseWakeLock();
+      clearPendingWorker();
       if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
 
       resetCamTools();
@@ -2506,7 +2868,7 @@
 
       if (video) { try { video.pause(); } catch (e) {} video.srcObject = null; }
       if (mediaStream) {
-        try { mediaStream.getTracks().forEach(function(t) { t.stop(); }); } catch (e) {}
+        try { mediaStream.getTracks().forEach(function(tr) { tr.stop(); }); } catch (e) {}
         mediaStream = null;
       }
     }
@@ -2530,7 +2892,7 @@
       showLoader(true);
       try {
         await ZXingWASM.prepareZXingModule();
-        const results = await ZXingWASM.readBarcodesFromImageFile(files[0], ZXING_PHOTO_OPTIONS);
+        const results = await ZXingWASM.readBarcodesFromImageFile(files[0], getPhotoScanOptions());
         showLoader(false);
         if (results && results.length > 0 && results[0].text) {
           onBarcodeDetected(results[0].text);
@@ -2546,13 +2908,14 @@
 
     function onScanSuccess(decodedText) {
       const now = Date.now();
-      if (decodedText === lastScanText && now - lastScanTime < 2000) return;
+      if (decodedText === lastScanText && now - lastScanTime < 1600) return;
       lastScanText = decodedText;
       lastScanTime = now;
 
       if (!isQuickFlowEnabled()) {
         pendingCameraResume = autoResumeCam;
-        stopCamera();
+        if (autoResumeCam) pauseCameraForModal();
+        else stopCamera();
       }
       onBarcodeDetected(decodedText);
     }
@@ -2816,7 +3179,9 @@
       const shouldResume = !!(fromAction && pendingCameraResume && autoResumeCam);
       pendingCameraResume = false;
       if (shouldResume) {
-        setTimeout(startCamera, 180);
+        setTimeout(resumeCameraFromModal, 30);
+      } else if (cameraPausedWarm) {
+        stopCamera();
       }
     }
 
