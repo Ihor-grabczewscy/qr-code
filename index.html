@@ -354,6 +354,94 @@
       gap: 10px;
     }
 
+    .cam-tools {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .cam-tool-btn {
+      flex: 1;
+      min-height: 38px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: #f8fafc;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .cam-tool-btn.active {
+      background: #fef3c7;
+      border-color: #f59e0b;
+      color: #92400e;
+    }
+
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      margin-top: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .switch-row input {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      margin-bottom: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .check-row input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+    }
+
+    .btn-danger-outline {
+      background: #ffffff;
+      color: var(--danger);
+      border: 1.5px solid #fecaca;
+      margin-top: 10px;
+    }
+
+    .offline-banner {
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      color: #92400e;
+      border-radius: 14px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
     .manual-row {
       display: flex;
       gap: 8px;
@@ -635,7 +723,7 @@
 
   <header class="app-header">
     <div class="header-title">
-      <span>Сканер товаров <small style="font-weight:500; opacity:0.65; font-size:11px;">v2.1</small></span>
+      <span>Сканер товаров <small style="font-weight:500; opacity:0.65; font-size:11px;">v2.2</small></span>
       <span class="header-sub" id="header-user-label">Не выбран пользователь</span>
     </div>
     <button class="btn btn-header hidden" id="btn-switch-user" onclick="switchUser()">Сменить</button>
@@ -679,6 +767,11 @@
     <!-- ЭКРАН 2: СКАНЕР И КАРТОЧКА ТОВАРА -->
     <section id="view-app" class="hidden">
 
+      <div id="offline-banner" class="offline-banner hidden">
+        <span id="offline-text">⏳ В очереди на отправку: 0</span>
+        <button type="button" class="btn btn-outline btn-sm" onclick="flushOfflineQueue(true)">Отправить</button>
+      </div>
+
       <!-- Блок сканирования -->
       <div class="card" id="scanner-card">
         <h2 class="card-title">Сканирование штрих-кода</h2>
@@ -687,7 +780,7 @@
           <video id="cam-video" playsinline muted autoplay></video>
           <div class="scan-overlay" aria-hidden="true">
             <div class="scan-badge"><span class="scan-dot"></span>Идёт сканирование</div>
-            <div class="scan-frame">
+            <div class="scan-frame" id="scan-frame">
               <div class="scan-laser"></div>
             </div>
           </div>
@@ -696,11 +789,21 @@
           </div>
         </div>
 
+        <div class="cam-tools hidden" id="cam-tools">
+          <button type="button" class="cam-tool-btn hidden" id="btn-torch" onclick="toggleTorch()">🔦 Свет</button>
+          <button type="button" class="cam-tool-btn hidden" id="btn-zoom" onclick="toggleZoom()">🔍 1x</button>
+        </div>
+
         <div class="btn-row">
           <button class="btn btn-primary" id="btn-toggle-cam" onclick="toggleCamera()">📷 Камера</button>
           <button class="btn btn-accent" onclick="triggerPhotoScan()">📸 Скан по фото</button>
         </div>
         <input type="file" id="photo-input" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoSelected(event)">
+
+        <label class="switch-row">
+          <span>⚡ Быстрый поток (+1 сразу в таблицу)</span>
+          <input type="checkbox" id="toggle-quick-flow" onchange="saveQuickFlowSetting()">
+        </label>
 
         <div id="camera-alert" class="alert alert-warn"></div>
 
@@ -721,6 +824,11 @@
           <label class="field-label" for="prod-name">Наименование товара</label>
           <input type="text" id="prod-name" class="input" placeholder="Название (необязательно)">
         </div>
+
+        <label class="check-row hidden" id="add-to-base-row">
+          <input type="checkbox" id="chk-add-to-base">
+          <span>Добавить новый штрихкод в общий лист «База»</span>
+        </label>
 
         <div class="stat-grid">
           <div class="stat-box highlight">
@@ -754,6 +862,10 @@
           <button type="button" class="btn btn-outline" onclick="closeProductCard()">Отмена</button>
           <button type="button" class="btn btn-primary" onclick="saveCurrentProduct()">Сохранить</button>
         </div>
+
+        <button type="button" class="btn btn-danger-outline hidden" id="btn-delete-scan" onclick="deleteCurrentProduct()">
+          🗑 Удалить запись из листа
+        </button>
       </div>
 
       <!-- Недавние сканирования пользователя -->
@@ -777,6 +889,8 @@
   <script>
     const STORAGE_KEY = 'barcode_app_user_v1';
     const API_URL_STORAGE_KEY = 'barcode_app_gas_url_v1';
+    const QUICK_FLOW_KEY = 'barcode_app_quickflow_v1';
+    const OFFLINE_QUEUE_KEY = 'barcode_app_offline_queue_v1';
     const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwywsP8VT9XOkgmtqysbKS80wvbN6JEEQxejWTdb1PYkCJBsJL1q-IuvNB6ePrxiCxQ/exec';
 
     let usersList = [];
@@ -789,17 +903,35 @@
     let isScanning = false;
     let lastScanText = '';
     let lastScanTime = 0;
+    let torchOn = false;
+    let zoomLevel = 1;
+    let maxZoomSupported = 1;
+    let isFlushingOffline = false;
 
-    const ZXING_OPTIONS = {
+    const ZXING_LIVE_OPTIONS = {
       formats: ['Linear-Codes', 'QRCode', 'DataMatrix'],
       tryHarder: true,
       tryRotate: true,
       tryInvert: true,
       tryDownscale: true,
+      minLineCount: 3,
+      maxNumberOfSymbols: 1
+    };
+
+    const ZXING_PHOTO_OPTIONS = {
+      formats: ['Linear-Codes', 'QRCode', 'DataMatrix'],
+      tryHarder: true,
+      tryRotate: true,
+      tryInvert: true,
+      tryDownscale: true,
+      minLineCount: 2,
       maxNumberOfSymbols: 1
     };
 
     window.addEventListener('DOMContentLoaded', initApp);
+    window.addEventListener('online', function() {
+      flushOfflineQueue(false);
+    });
 
     function isInsideAppsScript() {
       return typeof google !== 'undefined' && google.script && google.script.run;
@@ -843,6 +975,7 @@
         else if (method === 'getRecentForUser') runner.getRecentForUser(payload.userNumber);
         else if (method === 'lookupBarcode') runner.lookupBarcode(payload.userNumber, payload.barcode);
         else if (method === 'saveScan') runner.saveScan(payload);
+        else if (method === 'deleteScan') runner.deleteScan(payload.userNumber, payload.barcode);
         return;
       }
 
@@ -866,6 +999,8 @@
     }
 
     function initApp() {
+      loadQuickFlowSetting();
+      updateOfflineBanner();
       if (typeof ZXingWASM !== 'undefined') {
         ZXingWASM.prepareZXingModule().catch(function() {});
       }
@@ -875,6 +1010,102 @@
         return;
       }
       loadUsersAndAutoLogin();
+    }
+
+    function loadQuickFlowSetting() {
+      try {
+        const val = localStorage.getItem(QUICK_FLOW_KEY) === '1';
+        const el = document.getElementById('toggle-quick-flow');
+        if (el) el.checked = val;
+      } catch (e) {}
+    }
+
+    function saveQuickFlowSetting() {
+      try {
+        const el = document.getElementById('toggle-quick-flow');
+        localStorage.setItem(QUICK_FLOW_KEY, el && el.checked ? '1' : '0');
+      } catch (e) {}
+    }
+
+    function isQuickFlowEnabled() {
+      const el = document.getElementById('toggle-quick-flow');
+      return !!(el && el.checked);
+    }
+
+    function getOfflineQueue() {
+      try {
+        const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function setOfflineQueue(arr) {
+      try {
+        localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(arr || []));
+      } catch (e) {}
+      updateOfflineBanner();
+    }
+
+    function updateOfflineBanner() {
+      const q = getOfflineQueue();
+      const banner = document.getElementById('offline-banner');
+      const text = document.getElementById('offline-text');
+      if (!banner || !text) return;
+      if (q.length > 0) {
+        text.textContent = '⏳ В очереди на отправку: ' + q.length;
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+
+    function enqueueOfflineSave(payload) {
+      const q = getOfflineQueue();
+      q.push(payload);
+      setOfflineQueue(q);
+    }
+
+    function flushOfflineQueue(manual) {
+      if (isFlushingOffline) return;
+      const q = getOfflineQueue();
+      if (!q.length) {
+        if (manual) showToast('Очередь пуста');
+        return;
+      }
+      if (!navigator.onLine) {
+        if (manual) showToast('Нет подключения к интернету');
+        return;
+      }
+
+      isFlushingOffline = true;
+      const item = q[0];
+      callServer('saveScan', item,
+        function(res) {
+          isFlushingOffline = false;
+          if (res && res.ok) {
+            const updated = getOfflineQueue();
+            updated.shift();
+            setOfflineQueue(updated);
+            if (currentUser && item.userNumber === currentUser.number && res.recent) {
+              renderRecent(res.recent);
+            }
+            if (updated.length > 0) {
+              flushOfflineQueue(manual);
+            } else {
+              showToast('Офлайн-записи отправлены в таблицу');
+            }
+          } else if (manual) {
+            showToast((res && res.error) || 'Не удалось отправить очередь');
+          }
+        },
+        function() {
+          isFlushingOffline = false;
+          if (manual) showToast('Ошибка сети при отправке очереди');
+        }
+      );
     }
 
     function showLoader(show) {
@@ -1020,6 +1251,7 @@
           document.getElementById('view-login').classList.add('hidden');
           document.getElementById('view-app').classList.remove('hidden');
           renderRecent(res.recent || []);
+          flushOfflineQueue(false);
         },
         function(err) {
           showLoader(false);
@@ -1090,13 +1322,7 @@
         video.srcObject = mediaStream;
         await video.play();
 
-        try {
-          const track = mediaStream.getVideoTracks()[0];
-          if (track && track.applyConstraints) {
-            track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function() {});
-          }
-        } catch (e) {}
-
+        setupCameraCapabilities();
         scheduleNextFrame();
       } catch (err) {
         stopCamera();
@@ -1117,9 +1343,115 @@
       }
     }
 
+    function setupCameraCapabilities() {
+      resetCamTools();
+      try {
+        const track = mediaStream && mediaStream.getVideoTracks()[0];
+        if (!track) return;
+
+        if (track.applyConstraints) {
+          track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function() {});
+        }
+
+        if (!track.getCapabilities) return;
+        const caps = track.getCapabilities();
+        const tools = document.getElementById('cam-tools');
+        const btnTorch = document.getElementById('btn-torch');
+        const btnZoom = document.getElementById('btn-zoom');
+        let hasAny = false;
+
+        if (caps && caps.torch) {
+          btnTorch.classList.remove('hidden');
+          hasAny = true;
+        }
+        if (caps && caps.zoom && caps.zoom.max >= 2) {
+          maxZoomSupported = Math.min(2, caps.zoom.max);
+          btnZoom.textContent = '🔍 1x';
+          btnZoom.classList.remove('hidden');
+          hasAny = true;
+        }
+        if (hasAny) {
+          tools.classList.remove('hidden');
+        }
+      } catch (e) {}
+    }
+
+    function resetCamTools() {
+      torchOn = false;
+      zoomLevel = 1;
+      maxZoomSupported = 1;
+      const tools = document.getElementById('cam-tools');
+      const btnTorch = document.getElementById('btn-torch');
+      const btnZoom = document.getElementById('btn-zoom');
+      if (tools) tools.classList.add('hidden');
+      if (btnTorch) {
+        btnTorch.classList.add('hidden');
+        btnTorch.classList.remove('active');
+        btnTorch.textContent = '🔦 Свет';
+      }
+      if (btnZoom) {
+        btnZoom.classList.add('hidden');
+        btnZoom.classList.remove('active');
+        btnZoom.textContent = '🔍 1x';
+      }
+    }
+
+    function toggleTorch() {
+      try {
+        const track = mediaStream && mediaStream.getVideoTracks()[0];
+        if (!track || !track.applyConstraints) return;
+        torchOn = !torchOn;
+        track.applyConstraints({ advanced: [{ torch: torchOn }] })
+          .then(function() {
+            const btn = document.getElementById('btn-torch');
+            btn.classList.toggle('active', torchOn);
+            btn.textContent = torchOn ? '🔦 Вкл' : '🔦 Свет';
+          })
+          .catch(function() { torchOn = !torchOn; });
+      } catch (e) {}
+    }
+
+    function toggleZoom() {
+      try {
+        const track = mediaStream && mediaStream.getVideoTracks()[0];
+        if (!track || !track.applyConstraints || maxZoomSupported <= 1) return;
+        zoomLevel = zoomLevel > 1 ? 1 : maxZoomSupported;
+        track.applyConstraints({ advanced: [{ zoom: zoomLevel }] })
+          .then(function() {
+            const btn = document.getElementById('btn-zoom');
+            btn.classList.toggle('active', zoomLevel > 1);
+            btn.textContent = '🔍 ' + zoomLevel + 'x';
+          })
+          .catch(function() { zoomLevel = 1; });
+      } catch (e) {}
+    }
+
     function scheduleNextFrame() {
       if (!isScanning) return;
-      scanTimer = setTimeout(scanCurrentVideoFrame, 120);
+      scanTimer = setTimeout(scanCurrentVideoFrame, 110);
+    }
+
+    function getScanCropRect(video) {
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const box = document.getElementById('scanner-box');
+      const bw = (box && box.clientWidth) || vw;
+      const bh = (box && box.clientHeight) || vh;
+
+      const scale = Math.max(bw / vw, bh / vh);
+      const visW = bw / scale;
+      const visH = bh / scale;
+      const ox = (vw - visW) / 2;
+      const oy = (vh - visH) / 2;
+
+      // Match .scan-frame (86% width, ~170px height with quiet-zone margin)
+      const frameW = visW * 0.90;
+      const frameH = Math.min(visH, (170 / bh) * visH);
+      const sx = Math.max(0, Math.floor(ox + (visW - frameW) / 2));
+      const sy = Math.max(0, Math.floor(oy + (visH - frameH) / 2));
+      const sw = Math.min(vw - sx, Math.floor(frameW));
+      const sh = Math.min(vh - sy, Math.floor(frameH));
+      return { sx: sx, sy: sy, sw: sw, sh: sh };
     }
 
     async function scanCurrentVideoFrame() {
@@ -1131,11 +1463,10 @@
       }
 
       try {
-        const vw = video.videoWidth;
-        const vh = video.videoHeight;
-        const scale = vw > 1280 ? (1280 / vw) : 1;
-        const cw = Math.round(vw * scale);
-        const ch = Math.round(vh * scale);
+        const crop = getScanCropRect(video);
+        const downscale = crop.sw > 1280 ? (1280 / crop.sw) : 1;
+        const cw = Math.max(16, Math.round(crop.sw * downscale));
+        const ch = Math.max(16, Math.round(crop.sh * downscale));
 
         if (!scanCanvas) {
           scanCanvas = document.createElement('canvas');
@@ -1146,14 +1477,14 @@
           scanCanvas.height = ch;
         }
 
-        scanCtx.drawImage(video, 0, 0, cw, ch);
+        scanCtx.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, cw, ch);
         const imageData = scanCtx.getImageData(0, 0, cw, ch);
-        const results = await ZXingWASM.readBarcodesFromImageData(imageData, ZXING_OPTIONS);
+        const results = await ZXingWASM.readBarcodesFromImageData(imageData, ZXING_LIVE_OPTIONS);
 
         if (!isScanning) return;
         if (results && results.length > 0 && results[0].text) {
           onScanSuccess(results[0].text);
-          return;
+          if (!isScanning) return;
         }
       } catch (e) {}
 
@@ -1167,6 +1498,7 @@
         scanTimer = null;
       }
 
+      resetCamTools();
       const box = document.getElementById('scanner-box');
       const video = document.getElementById('cam-video');
       const btn = document.getElementById('btn-toggle-cam');
@@ -1211,11 +1543,15 @@
       showLoader(true);
       try {
         await ZXingWASM.prepareZXingModule();
-        const results = await ZXingWASM.readBarcodesFromImageFile(file, ZXING_OPTIONS);
+        const results = await ZXingWASM.readBarcodesFromImageFile(file, ZXING_PHOTO_OPTIONS);
         showLoader(false);
         if (results && results.length > 0 && results[0].text) {
           beepSuccess();
-          lookupScannedBarcode(results[0].text);
+          if (isQuickFlowEnabled()) {
+            quickAddBarcode(results[0].text);
+          } else {
+            lookupScannedBarcode(results[0].text);
+          }
         } else {
           showAlert('camera-alert', 'Не удалось распознать штрихкод на фото. Попробуйте снять чуть ровнее и при хорошем освещении.');
         }
@@ -1227,15 +1563,45 @@
 
     function onScanSuccess(decodedText) {
       const now = Date.now();
-      if (decodedText === lastScanText && now - lastScanTime < 2500) {
+      if (decodedText === lastScanText && now - lastScanTime < 2200) {
         return;
       }
       lastScanText = decodedText;
       lastScanTime = now;
 
       beepSuccess();
-      stopCamera();
-      lookupScannedBarcode(decodedText);
+      if (isQuickFlowEnabled()) {
+        quickAddBarcode(decodedText);
+      } else {
+        stopCamera();
+        lookupScannedBarcode(decodedText);
+      }
+    }
+
+    function quickAddBarcode(barcode) {
+      if (!currentUser) return;
+      const payload = {
+        userNumber: currentUser.number,
+        barcode: String(barcode).trim(),
+        mode: 'add',
+        deltaQty: 1
+      };
+      showToast('⚡ +1: ' + payload.barcode + '...');
+
+      callServer('saveScan', payload,
+        function(res) {
+          if (res && res.ok) {
+            renderRecent(res.recent || []);
+            showToast('✓ ' + res.saved.barcode + ' — Факт: ' + res.saved.factQty);
+          } else {
+            showToast((res && res.error) || 'Ошибка сохранения');
+          }
+        },
+        function() {
+          enqueueOfflineSave(payload);
+          showToast('📴 Офлайн (+1 в очередь): ' + payload.barcode);
+        }
+      );
     }
 
     function searchManualBarcode() {
@@ -1285,24 +1651,32 @@
       const unitSuffix = base.unit ? (' ' + base.unit) : '';
       currentExpectedQty = base.expectedQty !== null && base.expectedQty !== undefined ? base.expectedQty : null;
 
+      const addToBaseRow = document.getElementById('add-to-base-row');
+      const chkAddToBase = document.getElementById('chk-add-to-base');
+      chkAddToBase.checked = false;
+
       if (base.found && currentExpectedQty !== null) {
         document.getElementById('stat-expected').textContent = currentExpectedQty + unitSuffix;
         document.getElementById('stat-expected-sub').textContent = 'Найдено в листе «База»';
         const fillBtn = document.getElementById('btn-fill-expected');
         fillBtn.textContent = '= По учёту (' + currentExpectedQty + ')';
         fillBtn.classList.remove('hidden');
+        addToBaseRow.classList.add('hidden');
       } else if (base.found) {
         document.getElementById('stat-expected').textContent = '—';
         document.getElementById('stat-expected-sub').textContent = 'В базе не указано кол-во';
         document.getElementById('btn-fill-expected').classList.add('hidden');
+        addToBaseRow.classList.add('hidden');
       } else {
         document.getElementById('stat-expected').textContent = 'Нет';
         document.getElementById('stat-expected-sub').textContent = 'Штрихкода нет в «Базе»';
         document.getElementById('btn-fill-expected').classList.add('hidden');
+        addToBaseRow.classList.remove('hidden');
       }
 
       const statusBadge = document.getElementById('prod-status-badge');
       const qtyInput = document.getElementById('prod-qty');
+      const deleteBtn = document.getElementById('btn-delete-scan');
 
       if (userRec.found && userRec.factQty !== null && userRec.factQty !== undefined) {
         document.getElementById('stat-prev').textContent = userRec.factQty + unitSuffix;
@@ -1310,12 +1684,14 @@
         qtyInput.value = userRec.factQty;
         statusBadge.textContent = 'Повторное сканирование';
         statusBadge.style.color = '#2563eb';
+        deleteBtn.classList.remove('hidden');
       } else {
         document.getElementById('stat-prev').textContent = '0';
         document.getElementById('stat-prev-sub').textContent = 'Ещё не вносилось вами';
         qtyInput.value = 1;
         statusBadge.textContent = 'Новая позиция';
         statusBadge.style.color = '#0f766e';
+        deleteBtn.classList.add('hidden');
       }
 
       card.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1352,15 +1728,20 @@
         return;
       }
 
+      const addToBase = !!document.getElementById('chk-add-to-base').checked;
+
       showAlert('product-error', '');
       showLoader(true);
 
-      callServer('saveScan', {
-          userNumber: currentUser.number,
-          barcode: barcode,
-          factQty: factQty,
-          productName: productName
-        },
+      const payload = {
+        userNumber: currentUser.number,
+        barcode: barcode,
+        factQty: factQty,
+        productName: productName,
+        addToBase: addToBase
+      };
+
+      callServer('saveScan', payload,
         function(res) {
           showLoader(false);
           if (!res || !res.ok) {
@@ -1378,7 +1759,37 @@
         },
         function(err) {
           showLoader(false);
-          showAlert('product-error', (err && err.message) || 'Ошибка сохранения.');
+          enqueueOfflineSave(payload);
+          document.getElementById('manual-barcode').value = '';
+          closeProductCard();
+          showToast('📴 Нет сети — сохранено в очередь (' + barcode + ')');
+        }
+      );
+    }
+
+    function deleteCurrentProduct() {
+      if (!currentUser) return;
+      const barcode = document.getElementById('prod-barcode').textContent.trim();
+      if (!barcode) return;
+      if (!confirm('Удалить штрихкод ' + barcode + ' из вашего листа?')) return;
+
+      showAlert('product-error', '');
+      showLoader(true);
+      callServer('deleteScan', { userNumber: currentUser.number, barcode: barcode },
+        function(res) {
+          showLoader(false);
+          if (!res || !res.ok) {
+            showAlert('product-error', (res && res.error) || 'Не удалось удалить запись.');
+            return;
+          }
+          renderRecent(res.recent || []);
+          document.getElementById('manual-barcode').value = '';
+          closeProductCard();
+          showToast('Удалено: ' + barcode);
+        },
+        function(err) {
+          showLoader(false);
+          showAlert('product-error', (err && err.message) || 'Ошибка удаления.');
         }
       );
     }
