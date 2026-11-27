@@ -804,10 +804,11 @@
 
   <header class="app-header">
     <div class="header-title">
-      <span>Сканер товаров <small style="font-weight:500; opacity:0.65; font-size:11px;">v2.3</small></span>
+      <span>Сканер товаров <small style="font-weight:500; opacity:0.65; font-size:11px;">v2.4</small></span>
       <span class="header-sub" id="header-user-label">Не выбран пользователь</span>
     </div>
     <div class="header-actions">
+      <button type="button" class="icon-btn" id="btn-sound" onclick="toggleSound()" title="Звук">🔊</button>
       <button type="button" class="icon-btn" id="btn-theme" onclick="toggleTheme()" title="Тема">🌙</button>
       <button type="button" class="icon-btn hidden" id="btn-settings" onclick="toggleSettings()" title="Настройки">⚙</button>
     </div>
@@ -864,6 +865,15 @@
           <button type="button" class="chip" onclick="pickLocation('Теплица 1')">Теплица 1</button>
           <button type="button" class="chip" onclick="pickLocation('Площадка')">Площадка</button>
         </div>
+
+        <label class="check-row">
+          <input type="checkbox" id="chk-scan-tick" onchange="saveAudioSettings()">
+          <span>⏱ Тихий «тик» пока ищет камера</span>
+        </label>
+        <label class="check-row">
+          <input type="checkbox" id="chk-voice" onchange="saveAudioSettings()">
+          <span>🗣 Озвучивать результат голосом</span>
+        </label>
 
         <div class="btn-row">
           <button type="button" class="btn btn-secondary btn-sm" style="width:100%;" onclick="syncCatalogAndUser(true)">🔄 Синхр. Базу</button>
@@ -1041,6 +1051,9 @@
     const LOCATION_KEY = 'barcode_app_location_v1';
     const CATALOG_CACHE_KEY = 'barcode_app_catalog_v1';
     const USER_ITEMS_CACHE_KEY = 'barcode_app_user_items_v1';
+    const SOUND_KEY = 'barcode_app_sound_v1';
+    const SCAN_TICK_KEY = 'barcode_app_scan_tick_v1';
+    const VOICE_KEY = 'barcode_app_voice_v1';
     const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwywsP8VT9XOkgmtqysbKS80wvbN6JEEQxejWTdb1PYkCJBsJL1q-IuvNB6ePrxiCxQ/exec';
 
     let usersList = [];
@@ -1052,6 +1065,12 @@
     let currentExpectedQty = null;
     let currentOpType = 'inventory';
     let currentLocation = '';
+    let soundEnabled = true;
+    let scanTickEnabled = true;
+    let voiceEnabled = false;
+    let audioCtx = null;
+    let audioUnlocked = false;
+    let scanTickTimer = null;
     let mediaStream = null;
     let scanTimer = null;
     let scanCanvas = null;
@@ -1089,6 +1108,8 @@
     };
 
     window.addEventListener('DOMContentLoaded', initApp);
+    window.addEventListener('pointerdown', unlockAudio, { passive: true });
+    window.addEventListener('touchstart', unlockAudio, { passive: true });
     window.addEventListener('online', function() { flushOfflineQueue(false); });
     document.addEventListener('visibilitychange', function() {
       if (document.visibilityState === 'visible' && isScanning) requestWakeLock();
@@ -1186,6 +1207,7 @@
 
     function initApp() {
       loadTheme();
+      loadAudioSettings();
       loadSettingsState();
       loadQuickFlowSetting();
       loadCachedCatalogAndUserItems();
@@ -1488,43 +1510,140 @@
       else { el.textContent = msg; el.classList.add('show'); }
     }
 
-    function beepSuccess() {
+    function getAudioCtx() {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return null;
+      if (!audioCtx || audioCtx.state === 'closed') {
+        audioCtx = new AudioCtx();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(function() {});
+      }
+      return audioCtx;
+    }
+
+    function unlockAudio() {
       try {
-        if (navigator.vibrate) navigator.vibrate(75);
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(1046.5, ctx.currentTime);
-        gain.gain.setValueAtTime(0.12, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.13);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.13);
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        if (!audioUnlocked) {
+          const buf = ctx.createBuffer(1, 1, 22050);
+          const src = ctx.createBufferSource();
+          src.buffer = buf;
+          src.connect(ctx.destination);
+          src.start(0);
+          audioUnlocked = true;
+        }
       } catch (e) {}
     }
 
-    function beepUnknown() {
+    function loadAudioSettings() {
       try {
-        if (navigator.vibrate) navigator.vibrate([55, 45, 55]);
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
-        [0, 0.14].forEach(function(offset) {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(420, ctx.currentTime + offset);
-          gain.gain.setValueAtTime(0.12, ctx.currentTime + offset);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + offset + 0.11);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(ctx.currentTime + offset);
-          osc.stop(ctx.currentTime + offset + 0.11);
-        });
+        soundEnabled = localStorage.getItem(SOUND_KEY) !== '0';
+        scanTickEnabled = localStorage.getItem(SCAN_TICK_KEY) !== '0';
+        voiceEnabled = localStorage.getItem(VOICE_KEY) === '1';
+      } catch (e) {}
+      const btn = document.getElementById('btn-sound');
+      if (btn) btn.textContent = soundEnabled ? '🔊' : '🔇';
+      const tickEl = document.getElementById('chk-scan-tick');
+      if (tickEl) tickEl.checked = scanTickEnabled;
+      const voiceEl = document.getElementById('chk-voice');
+      if (voiceEl) voiceEl.checked = voiceEnabled;
+    }
+
+    function saveAudioSettings() {
+      const tickEl = document.getElementById('chk-scan-tick');
+      const voiceEl = document.getElementById('chk-voice');
+      scanTickEnabled = !!(tickEl && tickEl.checked);
+      voiceEnabled = !!(voiceEl && voiceEl.checked);
+      try {
+        localStorage.setItem(SCAN_TICK_KEY, scanTickEnabled ? '1' : '0');
+        localStorage.setItem(VOICE_KEY, voiceEnabled ? '1' : '0');
+      } catch (e) {}
+      if (isScanning) {
+        if (scanTickEnabled) startScanTickLoop();
+        else stopScanTickLoop();
+      }
+    }
+
+    function toggleSound() {
+      unlockAudio();
+      soundEnabled = !soundEnabled;
+      try { localStorage.setItem(SOUND_KEY, soundEnabled ? '1' : '0'); } catch (e) {}
+      const btn = document.getElementById('btn-sound');
+      if (btn) btn.textContent = soundEnabled ? '🔊' : '🔇';
+      if (soundEnabled) {
+        beepSaved();
+        if (isScanning && scanTickEnabled) startScanTickLoop();
+      } else {
+        stopScanTickLoop();
+      }
+    }
+
+    function playTone(freq, startOffset, duration, type, peakGain) {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const t = ctx.currentTime + (startOffset || 0);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type || 'sine';
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.001, t);
+        gain.gain.exponentialRampToValueAtTime(peakGain || 0.25, t + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + duration + 0.01);
+      } catch (e) {}
+    }
+
+    function beepSuccess() {
+      try { if (navigator.vibrate) navigator.vibrate(75); } catch (e) {}
+      playTone(1480, 0, 0.06, 'sine', 0.34);
+      playTone(1975, 0.06, 0.09, 'sine', 0.36);
+    }
+
+    function beepUnknown() {
+      try { if (navigator.vibrate) navigator.vibrate([55, 45, 55]); } catch (e) {}
+      playTone(440, 0, 0.09, 'triangle', 0.28);
+      playTone(370, 0.12, 0.11, 'triangle', 0.28);
+    }
+
+    function beepSaved() {
+      playTone(880, 0, 0.055, 'sine', 0.18);
+      playTone(1318, 0.055, 0.085, 'sine', 0.2);
+    }
+
+    function beepScanTick() {
+      if (!soundEnabled || !scanTickEnabled || !isScanning) return;
+      playTone(1050, 0, 0.018, 'sine', 0.045);
+    }
+
+    function startScanTickLoop() {
+      stopScanTickLoop();
+      if (!soundEnabled || !scanTickEnabled || !isScanning) return;
+      scanTickTimer = setInterval(beepScanTick, 1400);
+    }
+
+    function stopScanTickLoop() {
+      if (scanTickTimer) {
+        clearInterval(scanTickTimer);
+        scanTickTimer = null;
+      }
+    }
+
+    function speakText(text) {
+      if (!soundEnabled || !voiceEnabled || !text) return;
+      try {
+        if (!('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(String(text));
+        u.lang = 'ru-RU';
+        u.rate = 1.15;
+        window.speechSynthesis.speak(u);
       } catch (e) {}
     }
 
@@ -1667,6 +1786,7 @@
 
     /* Camera & Scanning */
     function toggleCamera() {
+      unlockAudio();
       if (isScanning) stopCamera();
       else startCamera();
     }
@@ -1704,6 +1824,7 @@
         video.srcObject = mediaStream;
         await video.play();
         setupCameraCapabilities();
+        startScanTickLoop();
         scheduleNextFrame();
       } catch (err) {
         stopCamera();
@@ -1858,6 +1979,7 @@
 
     function stopCamera() {
       isScanning = false;
+      stopScanTickLoop();
       releaseWakeLock();
       if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
 
@@ -1925,8 +2047,13 @@
 
     function onBarcodeDetected(code) {
       const baseLocal = findInCatalogLocal(code);
-      if (baseLocal.found || catalogCache.length === 0) beepSuccess();
-      else beepUnknown();
+      if (baseLocal.found || catalogCache.length === 0) {
+        beepSuccess();
+        if (voiceEnabled && baseLocal.name) speakText(baseLocal.name);
+      } else {
+        beepUnknown();
+        if (voiceEnabled) speakText('Нет в базе');
+      }
 
       if (isQuickFlowEnabled()) quickAddBarcode(code);
       else openProductFromCacheOrServer(code);
@@ -2265,6 +2392,7 @@
 
       document.getElementById('manual-barcode').value = '';
       closeProductCard();
+      beepSaved();
       showToast('Сохранено: ' + barcode + ' — ' + optimisticFact);
 
       const payload = {
