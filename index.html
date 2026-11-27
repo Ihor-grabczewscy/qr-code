@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="Сканер">
   <meta name="theme-color" content="#0f172a">
   <title>Сканер штрих-кодов</title>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/zxing-wasm@2.1.0/dist/iife/reader/index.js"></script>
   <style>
     :root {
       --bg: #f1f5f9;
@@ -238,16 +238,26 @@
       border-radius: 14px;
       overflow: hidden;
       background: #0f172a;
-      min-height: 220px;
+      min-height: 250px;
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
       margin-bottom: 12px;
+      isolation: isolate;
     }
 
-    #reader {
+    #cam-video {
       width: 100%;
+      height: 270px;
+      object-fit: cover;
+      display: none;
+      position: relative;
+      z-index: 1;
+    }
+
+    .scanner-box.active-scan #cam-video {
+      display: block;
     }
 
     .scanner-placeholder {
@@ -261,30 +271,81 @@
       text-align: center;
       padding: 24px 16px;
       pointer-events: none;
+      z-index: 2;
+    }
+
+    .scan-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 999;
+      pointer-events: none;
+      display: none;
+      transform: translate3d(0, 0, 0);
+      -webkit-transform: translate3d(0, 0, 0);
+    }
+
+    .scanner-box.active-scan .scan-overlay {
+      display: block;
+    }
+
+    .scan-frame {
+      position: absolute;
+      left: 7%;
+      right: 7%;
+      top: 50%;
+      height: 140px;
+      transform: translateY(-50%);
+      border: 2px solid rgba(255, 255, 255, 0.85);
+      border-radius: 12px;
+      box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.35);
+      overflow: hidden;
     }
 
     .scan-laser {
       position: absolute;
-      left: 8%;
-      right: 8%;
+      left: 4%;
+      right: 4%;
       height: 3px;
       border-radius: 999px;
-      background: linear-gradient(90deg, rgba(239, 68, 68, 0) 0%, #ef4444 15%, #ff1f1f 50%, #ef4444 85%, rgba(239, 68, 68, 0) 100%);
-      box-shadow: 0 0 10px 2px rgba(239, 68, 68, 0.85), 0 0 22px 4px rgba(239, 68, 68, 0.45);
-      z-index: 15;
-      pointer-events: none;
-      display: none;
-      animation: scan-sweep 1.8s ease-in-out infinite;
+      background: linear-gradient(90deg, rgba(239, 68, 68, 0) 0%, #ef4444 12%, #ff1e1e 50%, #ef4444 88%, rgba(239, 68, 68, 0) 100%);
+      box-shadow: 0 0 10px 2px rgba(239, 68, 68, 0.9), 0 0 20px 4px rgba(239, 68, 68, 0.5);
+      will-change: top;
+      animation: scan-sweep 1.6s ease-in-out infinite;
     }
 
-    .scanner-box.active-scan .scan-laser {
-      display: block;
+    .scan-badge {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.78);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .scan-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      animation: dot-pulse 1s ease-in-out infinite;
     }
 
     @keyframes scan-sweep {
-      0% { top: 20%; }
-      50% { top: 78%; }
-      100% { top: 20%; }
+      0% { top: 8%; }
+      50% { top: 88%; }
+      100% { top: 8%; }
+    }
+
+    @keyframes dot-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
     }
 
     .btn-row {
@@ -574,7 +635,7 @@
 
   <header class="app-header">
     <div class="header-title">
-      <span>Сканер товаров</span>
+      <span>Сканер товаров <small style="font-weight:500; opacity:0.65; font-size:11px;">v2.1</small></span>
       <span class="header-sub" id="header-user-label">Не выбран пользователь</span>
     </div>
     <button class="btn btn-header hidden" id="btn-switch-user" onclick="switchUser()">Сменить</button>
@@ -623,8 +684,13 @@
         <h2 class="card-title">Сканирование штрих-кода</h2>
 
         <div class="scanner-box" id="scanner-box">
-          <div id="reader"></div>
-          <div class="scan-laser" aria-hidden="true"></div>
+          <video id="cam-video" playsinline muted autoplay></video>
+          <div class="scan-overlay" aria-hidden="true">
+            <div class="scan-badge"><span class="scan-dot"></span>Идёт сканирование</div>
+            <div class="scan-frame">
+              <div class="scan-laser"></div>
+            </div>
+          </div>
           <div id="scanner-placeholder" class="scanner-placeholder">
             Нажмите «Камера» для сканирования в реальном времени или «Скан по фото» (удобно на iPhone)
           </div>
@@ -716,10 +782,22 @@
     let usersList = [];
     let currentUser = null;
     let currentExpectedQty = null;
-    let html5QrCode = null;
+    let mediaStream = null;
+    let scanTimer = null;
+    let scanCanvas = null;
+    let scanCtx = null;
     let isScanning = false;
     let lastScanText = '';
     let lastScanTime = 0;
+
+    const ZXING_OPTIONS = {
+      formats: ['Linear-Codes', 'QRCode', 'DataMatrix'],
+      tryHarder: true,
+      tryRotate: true,
+      tryInvert: true,
+      tryDownscale: true,
+      maxNumberOfSymbols: 1
+    };
 
     window.addEventListener('DOMContentLoaded', initApp);
 
@@ -788,6 +866,9 @@
     }
 
     function initApp() {
+      if (typeof ZXingWASM !== 'undefined') {
+        ZXingWASM.prepareZXingModule().catch(function() {});
+      }
       if (!isInsideAppsScript() && !getExternalApiUrl()) {
         document.getElementById('view-login').classList.add('hidden');
         document.getElementById('view-api-setup').classList.remove('hidden');
@@ -958,13 +1039,6 @@
       document.getElementById('header-user-label').textContent = 'Не выбран пользователь';
     }
 
-    function ensureQrInstance() {
-      if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode('reader');
-      }
-      return html5QrCode;
-    }
-
     function toggleCamera() {
       if (isScanning) {
         stopCamera();
@@ -973,77 +1047,144 @@
       }
     }
 
-    function startCamera() {
+    async function startCamera() {
       showAlert('camera-alert', '');
-      if (typeof Html5Qrcode === 'undefined') {
+      if (typeof ZXingWASM === 'undefined') {
         showAlert('camera-alert', 'Библиотека сканера не загрузилась. Проверьте интернет или используйте ручной ввод.');
         return;
       }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showAlert(
+          'camera-alert',
+          'Камера в прямом режиме недоступна в этом браузере. Используйте кнопку «📸 Скан по фото» или введите штрихкод вручную.'
+        );
+        return;
+      }
 
-      const qr = ensureQrInstance();
       const box = document.getElementById('scanner-box');
+      const video = document.getElementById('cam-video');
       const placeholder = document.getElementById('scanner-placeholder');
       const btn = document.getElementById('btn-toggle-cam');
 
       placeholder.classList.add('hidden');
       btn.textContent = '⏹ Стоп';
+      isScanning = true;
+      box.classList.add('active-scan');
 
-      const config = {
-        fps: 12,
-        qrbox: function(viewfinderWidth, viewfinderHeight) {
-          const w = Math.max(180, Math.min(280, Math.floor(viewfinderWidth * 0.8)));
-          const h = Math.max(110, Math.min(160, Math.floor(viewfinderHeight * 0.45)));
-          return { width: w, height: h };
-        }
-      };
-
-      qr.start({ facingMode: 'environment' }, config, onScanSuccess, function() {})
-        .then(function() {
-          isScanning = true;
-          box.classList.add('active-scan');
-        })
-        .catch(function(err) {
-          isScanning = false;
-          box.classList.remove('active-scan');
-          placeholder.classList.remove('hidden');
-          btn.textContent = '📷 Камера';
-          const msg = String(err || '');
-          if (msg.indexOf('NotAllowedError') !== -1 || msg.indexOf('Permission') !== -1) {
-            showAlert(
-              'camera-alert',
-              isInsideAppsScript()
-                ? 'Браузер заблокировал прямой доступ к видеопотоку (ограничение Google Apps Script на iPhone). Нажмите кнопку «📸 Скан по фото» или откройте сайт на GitHub Pages.'
-                : 'Доступ к камере запрещён в браузере. Разрешите камеру для этого сайта в настройках браузера или используйте «📸 Скан по фото».'
-            );
-          } else {
-            showAlert(
-              'camera-alert',
-              'Не удалось запустить видеокамеру (' + msg + '). Вы можете использовать «📸 Скан по фото» или ввести штрихкод вручную.'
-            );
-          }
+      try {
+        await ZXingWASM.prepareZXingModule();
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          audio: false
         });
+
+        if (!isScanning) {
+          stopCamera();
+          return;
+        }
+
+        video.srcObject = mediaStream;
+        await video.play();
+
+        try {
+          const track = mediaStream.getVideoTracks()[0];
+          if (track && track.applyConstraints) {
+            track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function() {});
+          }
+        } catch (e) {}
+
+        scheduleNextFrame();
+      } catch (err) {
+        stopCamera();
+        const msg = String(err && (err.name || err.message || err) || '');
+        if (msg.indexOf('NotAllowedError') !== -1 || msg.indexOf('Permission') !== -1) {
+          showAlert(
+            'camera-alert',
+            isInsideAppsScript()
+              ? 'Браузер заблокировал видеопоток (ограничение Google Apps Script на iPhone). Нажмите «📸 Скан по фото» или откройте страницу на GitHub Pages.'
+              : 'Доступ к камере запрещён. Разрешите камеру для сайта в настройках браузера или нажмите «📸 Скан по фото».'
+          );
+        } else {
+          showAlert(
+            'camera-alert',
+            'Не удалось запустить видеокамеру (' + msg + '). Используйте «📸 Скан по фото» или ручной ввод.'
+          );
+        }
+      }
+    }
+
+    function scheduleNextFrame() {
+      if (!isScanning) return;
+      scanTimer = setTimeout(scanCurrentVideoFrame, 120);
+    }
+
+    async function scanCurrentVideoFrame() {
+      if (!isScanning) return;
+      const video = document.getElementById('cam-video');
+      if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
+        scheduleNextFrame();
+        return;
+      }
+
+      try {
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
+        const scale = vw > 1280 ? (1280 / vw) : 1;
+        const cw = Math.round(vw * scale);
+        const ch = Math.round(vh * scale);
+
+        if (!scanCanvas) {
+          scanCanvas = document.createElement('canvas');
+          scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+        }
+        if (scanCanvas.width !== cw || scanCanvas.height !== ch) {
+          scanCanvas.width = cw;
+          scanCanvas.height = ch;
+        }
+
+        scanCtx.drawImage(video, 0, 0, cw, ch);
+        const imageData = scanCtx.getImageData(0, 0, cw, ch);
+        const results = await ZXingWASM.readBarcodesFromImageData(imageData, ZXING_OPTIONS);
+
+        if (!isScanning) return;
+        if (results && results.length > 0 && results[0].text) {
+          onScanSuccess(results[0].text);
+          return;
+        }
+      } catch (e) {}
+
+      scheduleNextFrame();
     }
 
     function stopCamera() {
+      isScanning = false;
+      if (scanTimer) {
+        clearTimeout(scanTimer);
+        scanTimer = null;
+      }
+
       const box = document.getElementById('scanner-box');
+      const video = document.getElementById('cam-video');
       const btn = document.getElementById('btn-toggle-cam');
       const placeholder = document.getElementById('scanner-placeholder');
-      box.classList.remove('active-scan');
-      if (html5QrCode && isScanning) {
-        isScanning = false;
-        html5QrCode.stop()
-          .then(function() {
-            btn.textContent = '📷 Камера';
-            placeholder.classList.remove('hidden');
-          })
-          .catch(function() {
-            btn.textContent = '📷 Камера';
-            placeholder.classList.remove('hidden');
-          });
-      } else {
-        isScanning = false;
-        btn.textContent = '📷 Камера';
-        placeholder.classList.remove('hidden');
+
+      if (box) box.classList.remove('active-scan');
+      if (btn) btn.textContent = '📷 Камера';
+      if (placeholder) placeholder.classList.remove('hidden');
+
+      if (video) {
+        try { video.pause(); } catch (e) {}
+        video.srcObject = null;
+      }
+      if (mediaStream) {
+        try {
+          mediaStream.getTracks().forEach(function(t) { t.stop(); });
+        } catch (e) {}
+        mediaStream = null;
       }
     }
 
@@ -1057,23 +1198,31 @@
       input.click();
     }
 
-    function handlePhotoSelected(event) {
+    async function handlePhotoSelected(event) {
       const files = event.target.files;
       if (!files || !files.length) return;
       const file = files[0];
 
+      if (typeof ZXingWASM === 'undefined') {
+        showAlert('camera-alert', 'Библиотека сканера не загрузилась. Проверьте интернет.');
+        return;
+      }
+
       showLoader(true);
-      const qr = ensureQrInstance();
-      qr.scanFile(file, false)
-        .then(function(decodedText) {
-          showLoader(false);
+      try {
+        await ZXingWASM.prepareZXingModule();
+        const results = await ZXingWASM.readBarcodesFromImageFile(file, ZXING_OPTIONS);
+        showLoader(false);
+        if (results && results.length > 0 && results[0].text) {
           beepSuccess();
-          lookupScannedBarcode(decodedText);
-        })
-        .catch(function() {
-          showLoader(false);
-          showAlert('camera-alert', 'Не удалось распознать штрихкод на фото. Попробуйте сфотографировать ближе и при лучшем освещении.');
-        });
+          lookupScannedBarcode(results[0].text);
+        } else {
+          showAlert('camera-alert', 'Не удалось распознать штрихкод на фото. Попробуйте снять чуть ровнее и при хорошем освещении.');
+        }
+      } catch (e) {
+        showLoader(false);
+        showAlert('camera-alert', 'Ошибка обработки фото: ' + (e.message || e));
+      }
     }
 
     function onScanSuccess(decodedText) {
