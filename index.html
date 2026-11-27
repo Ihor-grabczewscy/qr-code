@@ -7,12 +7,16 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Сканер">
   <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icon.svg">
   <title>Сканер штрих-кодов</title>
   <script src="https://cdn.jsdelivr.net/npm/zxing-wasm@2.1.0/dist/iife/reader/index.js"></script>
   <style>
     :root {
       --bg: #f1f5f9;
       --card: #ffffff;
+      --surface: #f8fafc;
       --text: #0f172a;
       --muted: #64748b;
       --border: #e2e8f0;
@@ -29,9 +33,30 @@
       --radius: 16px;
     }
 
+    body.dark {
+      --bg: #020617;
+      --card: #0f172a;
+      --surface: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: #334155;
+      --primary: #14b8a6;
+      --primary-dark: #0d9488;
+      --primary-light: #134e4a;
+      --accent: #3b82f6;
+      --danger-light: #450a0a;
+      --warn-light: #451a03;
+      --success-light: #052e16;
+    }
+
     * {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      overscroll-behavior-y: contain;
+      touch-action: manipulation;
     }
 
     body {
@@ -41,21 +66,22 @@
       background: var(--bg);
       color: var(--text);
       line-height: 1.4;
-      padding-bottom: 32px;
+      padding-bottom: 40px;
+      transition: background-color 0.2s, color 0.2s;
     }
 
     .app-header {
       position: sticky;
       top: 0;
-      z-index: 20;
+      z-index: 30;
       background: #0f172a;
       color: #ffffff;
-      padding: 12px 16px;
+      padding: 10px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.15);
+      gap: 10px;
+      box-shadow: 0 2px 10px rgba(2, 6, 23, 0.25);
     }
 
     .header-title {
@@ -63,25 +89,52 @@
       font-weight: 700;
       display: flex;
       flex-direction: column;
+      min-width: 0;
     }
 
     .header-sub {
       font-size: 12px;
       color: #94a3b8;
       font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .icon-btn {
+      background: rgba(255, 255, 255, 0.14);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      min-width: 38px;
+      height: 38px;
+      padding: 0 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .container {
       max-width: 540px;
       margin: 0 auto;
-      padding: 14px;
+      padding: 12px;
     }
 
     .card {
       background: var(--card);
       border-radius: var(--radius);
-      padding: 16px;
-      margin-bottom: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
       border: 1px solid var(--border);
       box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
     }
@@ -89,7 +142,7 @@
     .card-title {
       font-size: 15px;
       font-weight: 700;
-      margin: 0 0 12px 0;
+      margin: 0 0 10px 0;
       color: var(--text);
     }
 
@@ -97,89 +150,132 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      gap: 6px;
       min-height: 46px;
-      padding: 10px 16px;
+      padding: 10px 14px;
       border-radius: 12px;
       border: none;
       font-size: 15px;
       font-weight: 600;
       cursor: pointer;
       transition: transform 0.08s ease, background-color 0.15s ease, opacity 0.15s ease;
-      text-decoration: none;
       width: 100%;
     }
 
-    .btn:active {
-      transform: scale(0.98);
-    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: #ffffff; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+    .btn-secondary { background: var(--surface); color: var(--text); border: 1.5px solid var(--border); }
+    .btn-outline { background: transparent; color: var(--text); border: 1.5px solid var(--border); }
+    .btn-accent { background: var(--accent); color: #ffffff; }
+    .btn-danger-icon { background: var(--danger-light); color: var(--danger); width: 48px; flex-shrink: 0; padding: 0; }
+    .btn-sm { min-height: 34px; padding: 5px 10px; font-size: 12px; width: auto; border-radius: 9px; }
 
-    .btn:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-    }
-
-    .btn-primary {
-      background: var(--primary);
-      color: #ffffff;
-    }
-
-    .btn-primary:hover:not(:disabled) {
-      background: var(--primary-dark);
-    }
-
-    .btn-secondary {
-      background: #e2e8f0;
-      color: var(--text);
-    }
-
-    .btn-outline {
-      background: #ffffff;
-      color: var(--text);
-      border: 1.5px solid var(--border);
-    }
-
-    .btn-accent {
-      background: var(--accent);
-      color: #ffffff;
-    }
-
-    .btn-sm {
-      min-height: 36px;
-      padding: 6px 12px;
-      font-size: 13px;
-      width: auto;
-      border-radius: 10px;
-    }
-
-    .btn-header {
-      background: rgba(255, 255, 255, 0.14);
-      color: #ffffff;
-      min-height: 36px;
-      padding: 6px 12px;
-      font-size: 13px;
-      width: auto;
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-
-    .input, .select {
+    .input {
       width: 100%;
-      min-height: 46px;
-      padding: 10px 14px;
+      min-height: 44px;
+      padding: 9px 12px;
       border-radius: 12px;
       border: 1.5px solid var(--border);
       font-size: 16px;
       color: var(--text);
-      background: #ffffff;
+      background: var(--card);
       outline: none;
     }
 
     .input:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+      box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15);
     }
 
+    /* Compact Settings Drawer */
+    .settings-drawer {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .seg-group {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .seg-btn {
+      padding: 8px 6px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .seg-btn.active {
+      border-color: var(--primary);
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+      margin-bottom: 10px;
+    }
+
+    .chip {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .chip.active {
+      border-color: var(--primary);
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    /* Progress bar */
+    .progress-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px 12px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .progress-track {
+      height: 5px;
+      border-radius: 999px;
+      background: var(--surface);
+      overflow: hidden;
+      margin-top: 5px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 999px;
+      transition: width 0.25s ease;
+    }
+
+    /* User Login Grid */
     .user-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
@@ -195,9 +291,8 @@
       padding: 14px 10px;
       border-radius: 14px;
       border: 2px solid var(--border);
-      background: #f8fafc;
+      background: var(--surface);
       cursor: pointer;
-      transition: border-color 0.15s, background-color 0.15s;
       text-align: center;
     }
 
@@ -220,45 +315,34 @@
       margin-bottom: 6px;
     }
 
-    .user-name {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text);
-      word-break: break-word;
-    }
+    .user-name { font-size: 14px; font-weight: 600; word-break: break-word; }
+    .user-pin-badge { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
-    .user-pin-badge {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-
+    /* Scanner Viewfinder */
     .scanner-box {
       width: 100%;
       border-radius: 14px;
       overflow: hidden;
       background: #0f172a;
-      min-height: 250px;
+      min-height: 240px;
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       isolation: isolate;
     }
 
     #cam-video {
       width: 100%;
-      height: 270px;
+      height: 260px;
       object-fit: cover;
       display: none;
       position: relative;
       z-index: 1;
     }
 
-    .scanner-box.active-scan #cam-video {
-      display: block;
-    }
+    .scanner-box.active-scan #cam-video { display: block; }
 
     .scanner-placeholder {
       position: absolute;
@@ -284,9 +368,7 @@
       -webkit-transform: translate3d(0, 0, 0);
     }
 
-    .scanner-box.active-scan .scan-overlay {
-      display: block;
-    }
+    .scanner-box.active-scan .scan-overlay { display: block; }
 
     .scan-frame {
       position: absolute;
@@ -348,24 +430,15 @@
       50% { opacity: 0.3; }
     }
 
-    .btn-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .cam-tools {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 10px;
-    }
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .cam-tools { display: flex; gap: 8px; margin-bottom: 8px; }
 
     .cam-tool-btn {
       flex: 1;
-      min-height: 38px;
+      min-height: 36px;
       border-radius: 10px;
       border: 1.5px solid var(--border);
-      background: #f8fafc;
+      background: var(--surface);
       color: var(--text);
       font-size: 13px;
       font-weight: 600;
@@ -373,9 +446,9 @@
     }
 
     .cam-tool-btn.active {
-      background: #fef3c7;
+      background: var(--warn-light);
       border-color: #f59e0b;
-      color: #92400e;
+      color: var(--warn);
     }
 
     .switch-row {
@@ -383,20 +456,208 @@
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      padding: 10px 12px;
+      padding: 9px 12px;
       border-radius: 12px;
-      background: #f8fafc;
+      background: var(--surface);
       border: 1px solid var(--border);
-      margin-top: 10px;
+      margin-top: 8px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
     }
 
-    .switch-row input {
-      width: 20px;
-      height: 20px;
-      accent-color: var(--primary);
+    .switch-row input { width: 20px; height: 20px; accent-color: var(--primary); }
+
+    .undo-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      background: var(--success-light);
+      color: var(--success);
+      border: 1px solid rgba(22, 163, 74, 0.35);
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+
+    .search-wrap { position: relative; margin-top: 10px; }
+    .manual-row { display: flex; gap: 8px; }
+    .manual-row .input { flex: 1; }
+    .manual-row .btn { width: auto; padding: 0 16px; }
+
+    .search-dropdown {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 100%;
+      margin-top: 4px;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(15, 23, 42, 0.16);
+      z-index: 25;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .search-opt {
+      width: 100%;
+      padding: 10px 12px;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .search-opt:last-child { border-bottom: none; }
+    .search-opt:active { background: var(--surface); }
+
+    .alert { padding: 10px 12px; border-radius: 12px; font-size: 13px; margin-top: 8px; display: none; }
+    .alert.show { display: block; }
+    .alert-warn { background: var(--warn-light); color: var(--warn); border: 1px solid rgba(217, 119, 6, 0.35); }
+    .alert-error { background: var(--danger-light); color: var(--danger); border: 1px solid rgba(220, 38, 38, 0.35); }
+
+    .offline-banner {
+      background: var(--warn-light);
+      border: 1px solid rgba(217, 119, 6, 0.45);
+      color: var(--warn);
+      border-radius: 12px;
+      padding: 8px 12px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    /* Bottom Sheet Product Card */
+    .sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.55);
+      z-index: 40;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .bottom-sheet {
+      width: 100%;
+      max-width: 540px;
+      background: var(--card);
+      border-top-left-radius: 22px;
+      border-top-right-radius: 22px;
+      padding: 12px 16px 22px 16px;
+      max-height: 92vh;
+      overflow-y: auto;
+      box-shadow: 0 -10px 30px rgba(2, 6, 23, 0.3);
+      animation: sheet-up 0.18s ease-out;
+    }
+
+    @keyframes sheet-up {
+      from { transform: translateY(36px); opacity: 0.7; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .sheet-handle {
+      width: 40px;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--border);
+      margin: 0 auto 12px auto;
+    }
+
+    .barcode-pill {
+      display: inline-flex;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+
+    .stat-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px 10px;
+    }
+
+    .stat-label { font-size: 11px; color: var(--muted); }
+    .stat-val { font-size: 18px; font-weight: 800; }
+    .stat-sub { font-size: 11px; color: var(--muted); }
+
+    .diff-pill {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .diff-ok { background: var(--success-light); color: var(--success); }
+    .diff-neg { background: var(--danger-light); color: var(--danger); }
+    .diff-pos { background: rgba(37, 99, 235, 0.14); color: var(--accent); }
+
+    .qty-controls { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+
+    .qty-btn {
+      width: 60px;
+      height: 56px;
+      flex-shrink: 0;
+      border-radius: 14px;
+      border: none;
+      font-size: 26px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .qty-btn:active { transform: scale(0.95); }
+    .qty-btn-minus { background: var(--danger-light); color: var(--danger); }
+    .qty-btn-plus { background: var(--success-light); color: var(--success); }
+
+    .qty-input {
+      flex: 1;
+      height: 56px;
+      text-align: center;
+      font-size: 25px;
+      font-weight: 800;
+      border-radius: 14px;
+      border: 2px solid var(--primary);
+      color: var(--text);
+      background: var(--card);
+      outline: none;
+      min-width: 0;
+    }
+
+    .quick-steps { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+
+    .step-chip {
+      padding: 6px 11px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
       cursor: pointer;
     }
 
@@ -404,269 +665,89 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 9px 12px;
+      padding: 8px 10px;
       border-radius: 10px;
-      background: #f8fafc;
+      background: var(--surface);
       border: 1px solid var(--border);
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
     }
 
-    .check-row input {
-      width: 18px;
-      height: 18px;
-      accent-color: var(--primary);
-    }
+    .check-row input { width: 18px; height: 18px; accent-color: var(--primary); }
 
-    .btn-danger-outline {
-      background: #ffffff;
-      color: var(--danger);
-      border: 1.5px solid #fecaca;
-      margin-top: 10px;
-    }
+    .sheet-actions { display: flex; gap: 8px; align-items: center; }
+    .sheet-actions .btn-outline { flex: 1; }
+    .sheet-actions .btn-primary { flex: 1.4; }
 
-    .offline-banner {
-      background: #fef3c7;
-      border: 1px solid #fcd34d;
-      color: #92400e;
-      border-radius: 14px;
-      padding: 10px 14px;
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      font-size: 13px;
-      font-weight: 600;
-    }
+    .field-group { margin-bottom: 10px; }
+    .field-label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
 
-    .manual-row {
-      display: flex;
-      gap: 8px;
-      margin-top: 12px;
-    }
+    /* Tabs & List */
+    .tab-row { display: flex; gap: 6px; }
 
-    .manual-row .input {
-      flex: 1;
-    }
-
-    .manual-row .btn {
-      width: auto;
-      padding: 0 18px;
-    }
-
-    .alert {
-      padding: 11px 14px;
-      border-radius: 12px;
-      font-size: 13px;
-      margin-top: 10px;
-      display: none;
-    }
-
-    .alert.show {
-      display: block;
-    }
-
-    .alert-warn {
-      background: var(--warn-light);
-      color: #92400e;
-      border: 1px solid #fde68a;
-    }
-
-    .alert-error {
-      background: var(--danger-light);
-      color: #991b1b;
-      border: 1px solid #fecaca;
-    }
-
-    .alert-success {
-      background: var(--success-light);
-      color: #166534;
-      border: 1px solid #bbf7d0;
-    }
-
-    .barcode-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: #f1f5f9;
-      border: 1px solid var(--border);
+    .tab-btn {
       padding: 5px 10px;
-      border-radius: 999px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--text);
-    }
-
-    .stat-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin: 12px 0;
-    }
-
-    .stat-box {
-      background: #f8fafc;
+      border-radius: 9px;
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px 12px;
-    }
-
-    .stat-box.highlight {
-      background: #eff6ff;
-      border-color: #bfdbfe;
-    }
-
-    .stat-label {
+      background: var(--surface);
+      color: var(--muted);
       font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 3px;
-    }
-
-    .stat-val {
-      font-size: 20px;
-      font-weight: 800;
-      color: var(--text);
-    }
-
-    .stat-sub {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-
-    .qty-label {
-      font-size: 14px;
-      font-weight: 700;
-      margin-bottom: 8px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .qty-controls {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-
-    .qty-btn {
-      width: 64px;
-      height: 60px;
-      flex-shrink: 0;
-      border-radius: 14px;
-      border: none;
-      font-size: 28px;
       font-weight: 700;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.08s ease;
     }
 
-    .qty-btn:active {
-      transform: scale(0.95);
+    .tab-btn.active {
+      background: var(--primary-light);
+      color: var(--primary);
+      border-color: var(--primary);
     }
 
-    .qty-btn-minus {
-      background: #fee2e2;
-      color: #b91c1c;
-    }
-
-    .qty-btn-plus {
-      background: #dcfce7;
-      color: #15803d;
-    }
-
-    .qty-input {
-      flex: 1;
-      height: 60px;
-      text-align: center;
-      font-size: 26px;
-      font-weight: 800;
-      border-radius: 14px;
-      border: 2px solid var(--primary);
-      color: var(--text);
-      background: #ffffff;
-      outline: none;
-      min-width: 0;
-    }
-
-    .field-group {
-      margin-bottom: 12px;
-    }
-
-    .field-label {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--muted);
-      margin-bottom: 5px;
-    }
-
-    .recent-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
+    .recent-list { display: flex; flex-direction: column; gap: 7px; }
 
     .recent-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      padding: 10px 12px;
+      padding: 9px 11px;
       border-radius: 12px;
       border: 1px solid var(--border);
-      background: #f8fafc;
+      background: var(--surface);
+      color: var(--text);
       cursor: pointer;
       text-align: left;
       width: 100%;
     }
 
-    .recent-item:active {
-      background: #e2e8f0;
+    .recent-info { min-width: 0; flex: 1; }
+    .recent-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .recent-meta { font-size: 11px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .recent-qty { text-align: right; flex-shrink: 0; }
+    .recent-fact { font-size: 16px; font-weight: 800; color: var(--primary); }
+    .recent-exp { font-size: 11px; color: var(--muted); }
+
+    /* QR Label Modal */
+    .modal-center {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.65);
+      z-index: 55;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
     }
 
-    .recent-info {
-      min-width: 0;
-      flex: 1;
-    }
-
-    .recent-name {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .recent-meta {
-      font-size: 12px;
-      color: var(--muted);
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    .recent-qty {
-      text-align: right;
-      flex-shrink: 0;
-    }
-
-    .recent-fact {
-      font-size: 16px;
-      font-weight: 800;
-      color: var(--primary);
-    }
-
-    .recent-exp {
-      font-size: 11px;
-      color: var(--muted);
+    .qr-box {
+      background: #ffffff;
+      color: #0f172a;
+      border-radius: 18px;
+      padding: 18px;
+      width: 100%;
+      max-width: 320px;
+      text-align: center;
     }
 
     .toast {
@@ -676,24 +757,19 @@
       transform: translateX(-50%) translateY(90px);
       background: #0f172a;
       color: #ffffff;
-      padding: 12px 18px;
+      padding: 11px 16px;
       border-radius: 999px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
-      z-index: 50;
-      transition: transform 0.25s ease;
+      box-shadow: 0 8px 24px rgba(2, 6, 23, 0.35);
+      z-index: 70;
+      transition: transform 0.22s ease;
       max-width: 90%;
       text-align: center;
     }
 
-    .toast.show {
-      transform: translateX(-50%) translateY(0);
-    }
-
-    .hidden {
-      display: none !important;
-    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .hidden { display: none !important; }
 
     .loader-overlay {
       position: fixed;
@@ -702,20 +778,25 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 60;
+      z-index: 80;
     }
 
     .spinner {
-      width: 44px;
-      height: 44px;
+      width: 42px;
+      height: 42px;
       border: 4px solid rgba(255, 255, 255, 0.35);
       border-top-color: #ffffff;
       border-radius: 50%;
       animation: spin 0.75s linear infinite;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media print {
+      body * { visibility: hidden; }
+      #qr-modal, #qr-modal * { visibility: visible; }
+      #qr-modal { position: fixed; inset: 0; background: #fff; }
+      #qr-modal .no-print { display: none !important; }
     }
   </style>
 </head>
@@ -723,19 +804,22 @@
 
   <header class="app-header">
     <div class="header-title">
-      <span>Сканер товаров <small style="font-weight:500; opacity:0.65; font-size:11px;">v2.2</small></span>
+      <span>Сканер товаров <small style="font-weight:500; opacity:0.65; font-size:11px;">v2.3</small></span>
       <span class="header-sub" id="header-user-label">Не выбран пользователь</span>
     </div>
-    <button class="btn btn-header hidden" id="btn-switch-user" onclick="switchUser()">Сменить</button>
+    <div class="header-actions">
+      <button type="button" class="icon-btn" id="btn-theme" onclick="toggleTheme()" title="Тема">🌙</button>
+      <button type="button" class="icon-btn hidden" id="btn-settings" onclick="toggleSettings()" title="Настройки">⚙</button>
+    </div>
   </header>
 
   <main class="container">
 
-    <!-- ЭКРАН 0: ПРИВЯЗКА К APPS SCRIPT (только при запуске с внешнего сайта без ?api=) -->
+    <!-- ЭКРАН 0: ПРИВЯЗКА К APPS SCRIPT -->
     <section id="view-api-setup" class="card hidden">
       <h2 class="card-title">Подключение к Google Таблице</h2>
       <p style="font-size:13px; color:var(--muted); margin:0 0 12px 0;">
-        Вставьте ссылку развёртывания Google Apps Script (<code>https://script.google.com/macros/s/.../exec</code>), чтобы подключить сканер к вашей таблице.
+        Вставьте ссылку развёртывания Google Apps Script (<code>https://script.google.com/macros/s/.../exec</code>).
       </p>
       <div class="field-group">
         <input type="url" id="input-api-url" class="input" placeholder="https://script.google.com/macros/s/.../exec">
@@ -747,35 +831,63 @@
     <!-- ЭКРАН 1: ВХОД ПО НОМЕРУ ПОЛЬЗОВАТЕЛЯ -->
     <section id="view-login" class="card">
       <h2 class="card-title">Выберите ваш номер пользователя</h2>
-
       <div id="user-grid" class="user-grid"></div>
-
       <div class="field-group">
         <label class="field-label" for="input-user-num">Или введите номер вручную</label>
         <input type="text" id="input-user-num" class="input" inputmode="numeric" placeholder="Например: 1">
       </div>
-
       <div class="field-group hidden" id="pin-group">
         <label class="field-label" for="input-user-pin">PIN-код</label>
         <input type="password" id="input-user-pin" class="input" inputmode="numeric" placeholder="Введите PIN">
       </div>
-
       <button class="btn btn-primary" onclick="submitLogin()">Войти</button>
       <div id="login-error" class="alert alert-error"></div>
     </section>
 
-    <!-- ЭКРАН 2: СКАНЕР И КАРТОЧКА ТОВАРА -->
+    <!-- ЭКРАН 2: СКАНЕР И РАБОТА -->
     <section id="view-app" class="hidden">
 
+      <!-- Скрываемая панель настроек ⚙ -->
+      <div id="settings-drawer" class="settings-drawer hidden">
+        <div class="field-label">Режим работы:</div>
+        <div class="seg-group">
+          <button type="button" class="seg-btn" data-op="inventory" onclick="setOpType('inventory')">Инвентар.</button>
+          <button type="button" class="seg-btn" data-op="in" onclick="setOpType('in')">Приход (+)</button>
+          <button type="button" class="seg-btn" data-op="out" onclick="setOpType('out')">Расход (−)</button>
+        </div>
+
+        <div class="field-label">Локация / зона (необязательно):</div>
+        <input type="text" id="input-location" class="input" placeholder="Напр.: Склад или Теплица 1" oninput="saveLocationSetting()">
+        <div class="chip-row">
+          <button type="button" class="chip" onclick="pickLocation('')">Без локации</button>
+          <button type="button" class="chip" onclick="pickLocation('Склад')">Склад</button>
+          <button type="button" class="chip" onclick="pickLocation('Теплица 1')">Теплица 1</button>
+          <button type="button" class="chip" onclick="pickLocation('Площадка')">Площадка</button>
+        </div>
+
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary btn-sm" style="width:100%;" onclick="syncCatalogAndUser(true)">🔄 Синхр. Базу</button>
+          <button type="button" class="btn btn-outline btn-sm" style="width:100%;" onclick="switchUser()">👤 Сменить №</button>
+        </div>
+      </div>
+
+      <!-- Прогресс по Базе (показывается, когда База заполнена) -->
+      <div id="progress-card" class="progress-card hidden">
+        <div style="display:flex; justify-content:space-between;">
+          <span id="progress-label">Проверено: 0 из 0</span>
+          <span id="progress-pct">0%</span>
+        </div>
+        <div class="progress-track"><div id="progress-fill" class="progress-fill" style="width:0%"></div></div>
+      </div>
+
+      <!-- Офлайн-очередь -->
       <div id="offline-banner" class="offline-banner hidden">
-        <span id="offline-text">⏳ В очереди на отправку: 0</span>
+        <span id="offline-text">⏳ В очереди: 0</span>
         <button type="button" class="btn btn-outline btn-sm" onclick="flushOfflineQueue(true)">Отправить</button>
       </div>
 
       <!-- Блок сканирования -->
       <div class="card" id="scanner-card">
-        <h2 class="card-title">Сканирование штрих-кода</h2>
-
         <div class="scanner-box" id="scanner-box">
           <video id="cam-video" playsinline muted autoplay></video>
           <div class="scan-overlay" aria-hidden="true">
@@ -785,7 +897,7 @@
             </div>
           </div>
           <div id="scanner-placeholder" class="scanner-placeholder">
-            Нажмите «Камера» для сканирования в реальном времени или «Скан по фото» (удобно на iPhone)
+            Нажмите «Камера» для сканирования или «По фото»
           </div>
         </div>
 
@@ -796,7 +908,7 @@
 
         <div class="btn-row">
           <button class="btn btn-primary" id="btn-toggle-cam" onclick="toggleCamera()">📷 Камера</button>
-          <button class="btn btn-accent" onclick="triggerPhotoScan()">📸 Скан по фото</button>
+          <button class="btn btn-accent" onclick="triggerPhotoScan()">📸 По фото</button>
         </div>
         <input type="file" id="photo-input" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoSelected(event)">
 
@@ -805,74 +917,30 @@
           <input type="checkbox" id="toggle-quick-flow" onchange="saveQuickFlowSetting()">
         </label>
 
+        <div id="undo-bar" class="undo-bar hidden">
+          <span id="undo-text"></span>
+          <button type="button" class="btn btn-outline btn-sm" onclick="undoLastQuickScan()">Отменить −1</button>
+        </div>
+
         <div id="camera-alert" class="alert alert-warn"></div>
 
-        <div class="manual-row">
-          <input type="text" id="manual-barcode" class="input" placeholder="Штрихкод вручную..." onkeydown="if(event.key==='Enter') searchManualBarcode()">
-          <button class="btn btn-secondary" onclick="searchManualBarcode()">Найти</button>
+        <div class="search-wrap">
+          <div class="manual-row">
+            <input type="text" id="manual-barcode" class="input" placeholder="Штрихкод или название..." oninput="handleSearchInput()" onkeydown="if(event.key==='Enter') searchManualBarcode()">
+            <button class="btn btn-secondary" onclick="searchManualBarcode()">Найти</button>
+          </div>
+          <div id="search-dropdown" class="search-dropdown hidden"></div>
         </div>
       </div>
 
-      <!-- Карточка отсканированного товара -->
-      <div class="card hidden" id="product-card">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
-          <span class="barcode-pill" id="prod-barcode">—</span>
-          <span id="prod-status-badge" style="font-size:12px; font-weight:700;"></span>
-        </div>
-
-        <div class="field-group">
-          <label class="field-label" for="prod-name">Наименование товара</label>
-          <input type="text" id="prod-name" class="input" placeholder="Название (необязательно)">
-        </div>
-
-        <label class="check-row hidden" id="add-to-base-row">
-          <input type="checkbox" id="chk-add-to-base">
-          <span>Добавить новый штрихкод в общий лист «База»</span>
-        </label>
-
-        <div class="stat-grid">
-          <div class="stat-box highlight">
-            <div class="stat-label">По учёту (База)</div>
-            <div class="stat-val" id="stat-expected">—</div>
-            <div class="stat-sub" id="stat-expected-sub"></div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">Уже в вашем листе</div>
-            <div class="stat-val" id="stat-prev">—</div>
-            <div class="stat-sub" id="stat-prev-sub"></div>
-          </div>
-        </div>
-
-        <div class="qty-label">
-          <span>Фактически в наличии:</span>
-          <button type="button" class="btn btn-outline btn-sm hidden" id="btn-fill-expected" onclick="fillExpectedQty()">
-            = По учёту
-          </button>
-        </div>
-
-        <div class="qty-controls">
-          <button type="button" class="qty-btn qty-btn-minus" onclick="adjustQty(-1)" aria-label="Уменьшить количество">−</button>
-          <input type="number" id="prod-qty" class="qty-input" inputmode="decimal" min="0" step="1" value="0">
-          <button type="button" class="qty-btn qty-btn-plus" onclick="adjustQty(1)" aria-label="Увеличить количество">+</button>
-        </div>
-
-        <div id="product-error" class="alert alert-error" style="margin-bottom:10px;"></div>
-
-        <div class="btn-row">
-          <button type="button" class="btn btn-outline" onclick="closeProductCard()">Отмена</button>
-          <button type="button" class="btn btn-primary" onclick="saveCurrentProduct()">Сохранить</button>
-        </div>
-
-        <button type="button" class="btn btn-danger-outline hidden" id="btn-delete-scan" onclick="deleteCurrentProduct()">
-          🗑 Удалить запись из листа
-        </button>
-      </div>
-
-      <!-- Недавние сканирования пользователя -->
+      <!-- Список: Недавние / Не посчитано -->
       <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <h2 class="card-title" style="margin:0;">Недавние в вашем листе</h2>
-          <button class="btn btn-outline btn-sm" onclick="refreshRecent()">Обновить</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
+          <div class="tab-row">
+            <button type="button" class="tab-btn active" id="tab-recent" onclick="switchListTab('recent')">Недавние</button>
+            <button type="button" class="tab-btn" id="tab-uncounted" onclick="switchListTab('uncounted')">Не посчитано</button>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="syncCatalogAndUser(true)">Обновить</button>
         </div>
         <div id="recent-list" class="recent-list">
           <div style="color:var(--muted); font-size:13px;">Пока нет записей</div>
@@ -883,6 +951,83 @@
 
   </main>
 
+  <!-- BOTTOM SHEET КАРТОЧКА ТОВАРА -->
+  <div id="sheet-backdrop" class="sheet-backdrop hidden" onclick="if(event.target===this) closeProductCard()">
+    <div class="bottom-sheet" id="product-card">
+      <div class="sheet-handle"></div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
+        <span class="barcode-pill" id="prod-barcode">—</span>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span id="prod-status-badge" style="font-size:12px; font-weight:700;"></span>
+          <button type="button" class="btn btn-outline btn-sm" onclick="openQrModal()" title="QR-этикетка">🏷 QR</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="closeProductCard()" aria-label="Закрыть">✕</button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <input type="text" id="prod-name" class="input" placeholder="Наименование товара (необязательно)">
+      </div>
+
+      <label class="check-row hidden" id="add-to-base-row">
+        <input type="checkbox" id="chk-add-to-base">
+        <span>Добавить новый штрихкод в общий лист «База»</span>
+      </label>
+
+      <div class="stat-grid">
+        <div class="stat-box">
+          <div class="stat-label">По учёту (База)</div>
+          <div class="stat-val" id="stat-expected">—</div>
+          <div class="stat-sub" id="stat-expected-sub"></div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">В вашем листе</div>
+          <div class="stat-val" id="stat-prev">—</div>
+          <div class="stat-sub" id="stat-prev-sub"></div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+        <span id="qty-mode-label" style="font-size:13px; font-weight:700;">Фактически в наличии:</span>
+        <span id="diff-pill" class="diff-pill hidden"></span>
+      </div>
+
+      <div class="qty-controls">
+        <button type="button" class="qty-btn qty-btn-minus" onclick="adjustQty(-1)" aria-label="Уменьшить">−</button>
+        <input type="number" id="prod-qty" class="qty-input" inputmode="decimal" min="0" step="1" value="0" oninput="updateDiffPreview()">
+        <button type="button" class="qty-btn qty-btn-plus" onclick="adjustQty(1)" aria-label="Увеличить">+</button>
+      </div>
+
+      <div class="quick-steps">
+        <button type="button" class="step-chip" onclick="adjustQty(5)">+5</button>
+        <button type="button" class="step-chip" onclick="adjustQty(10)">+10</button>
+        <button type="button" class="step-chip hidden" id="btn-fill-expected" onclick="fillExpectedQty()">= По учёту</button>
+        <button type="button" class="step-chip" onclick="setQtyExact(0)">0</button>
+      </div>
+
+      <div id="product-error" class="alert alert-error" style="margin-bottom:10px;"></div>
+
+      <div class="sheet-actions">
+        <button type="button" class="btn btn-danger-icon hidden" id="btn-delete-scan" onclick="deleteCurrentProduct()" title="Удалить">🗑</button>
+        <button type="button" class="btn btn-outline" onclick="closeProductCard()">Отмена</button>
+        <button type="button" class="btn btn-primary" onclick="saveCurrentProduct()">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛКА QR-ЭТИКЕТКИ -->
+  <div id="qr-modal" class="modal-center hidden" onclick="if(event.target===this) closeQrModal()">
+    <div class="qr-box">
+      <div style="font-size:15px; font-weight:700; margin-bottom:4px;" id="qr-title">Товар</div>
+      <div style="font-family:monospace; font-size:14px; color:#475569; margin-bottom:10px;" id="qr-code-text"></div>
+      <img id="qr-img" src="" alt="QR" style="width:200px; height:200px; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:12px;">
+      <div class="btn-row no-print">
+        <button type="button" class="btn btn-outline" onclick="closeQrModal()">Закрыть</button>
+        <button type="button" class="btn btn-primary" onclick="window.print()">🖨 Печать</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast"></div>
   <div id="loader" class="loader-overlay hidden"><div class="spinner"></div></div>
 
@@ -891,22 +1036,37 @@
     const API_URL_STORAGE_KEY = 'barcode_app_gas_url_v1';
     const QUICK_FLOW_KEY = 'barcode_app_quickflow_v1';
     const OFFLINE_QUEUE_KEY = 'barcode_app_offline_queue_v1';
+    const THEME_KEY = 'barcode_app_theme_v1';
+    const OP_TYPE_KEY = 'barcode_app_optype_v1';
+    const LOCATION_KEY = 'barcode_app_location_v1';
+    const CATALOG_CACHE_KEY = 'barcode_app_catalog_v1';
+    const USER_ITEMS_CACHE_KEY = 'barcode_app_user_items_v1';
     const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwywsP8VT9XOkgmtqysbKS80wvbN6JEEQxejWTdb1PYkCJBsJL1q-IuvNB6ePrxiCxQ/exec';
 
     let usersList = [];
     let currentUser = null;
+    let catalogCache = [];
+    let userItemsCache = [];
+    let recentItems = [];
+    let activeListTab = 'recent';
     let currentExpectedQty = null;
+    let currentOpType = 'inventory';
+    let currentLocation = '';
     let mediaStream = null;
     let scanTimer = null;
     let scanCanvas = null;
     let scanCtx = null;
+    let wakeLockObj = null;
     let isScanning = false;
     let lastScanText = '';
     let lastScanTime = 0;
+    let lastQuickUndo = null;
     let torchOn = false;
     let zoomLevel = 1;
     let maxZoomSupported = 1;
     let isFlushingOffline = false;
+    let hidBuffer = '';
+    let hidLastTime = 0;
 
     const ZXING_LIVE_OPTIONS = {
       formats: ['Linear-Codes', 'QRCode', 'DataMatrix'],
@@ -929,8 +1089,33 @@
     };
 
     window.addEventListener('DOMContentLoaded', initApp);
-    window.addEventListener('online', function() {
-      flushOfflineQueue(false);
+    window.addEventListener('online', function() { flushOfflineQueue(false); });
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'visible' && isScanning) requestWakeLock();
+    });
+
+    // Global Bluetooth/USB HID Barcode Scanner support
+    document.addEventListener('keydown', function(e) {
+      const tag = (e.target && e.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (!currentUser || !document.getElementById('sheet-backdrop').classList.contains('hidden')) return;
+
+      const now = Date.now();
+      if (now - hidLastTime > 120) hidBuffer = '';
+      hidLastTime = now;
+
+      if (e.key === 'Enter' && hidBuffer.length >= 4) {
+        e.preventDefault();
+        const code = hidBuffer.trim();
+        hidBuffer = '';
+        beepSuccess();
+        if (isQuickFlowEnabled()) quickAddBarcode(code);
+        else openProductFromCacheOrServer(code);
+        return;
+      }
+      if (e.key && e.key.length === 1) {
+        hidBuffer += e.key;
+      }
     });
 
     function isInsideAppsScript() {
@@ -972,10 +1157,11 @@
           .withFailureHandler(onError);
         if (method === 'getUsers') runner.getUsers();
         else if (method === 'loginUser') runner.loginUser(payload.userNumber, payload.pin);
+        else if (method === 'getUserSync') runner.getUserSync(payload.userNumber);
         else if (method === 'getRecentForUser') runner.getRecentForUser(payload.userNumber);
-        else if (method === 'lookupBarcode') runner.lookupBarcode(payload.userNumber, payload.barcode);
+        else if (method === 'lookupBarcode') runner.lookupBarcode(payload.userNumber, payload.barcode, payload.location);
         else if (method === 'saveScan') runner.saveScan(payload);
-        else if (method === 'deleteScan') runner.deleteScan(payload.userNumber, payload.barcode);
+        else if (method === 'deleteScan') runner.deleteScan(payload.userNumber, payload.barcode, payload.location);
         return;
       }
 
@@ -999,8 +1185,15 @@
     }
 
     function initApp() {
+      loadTheme();
+      loadSettingsState();
       loadQuickFlowSetting();
+      loadCachedCatalogAndUserItems();
       updateOfflineBanner();
+
+      if (!isInsideAppsScript() && 'serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+        navigator.serviceWorker.register('./sw.js').catch(function() {});
+      }
       if (typeof ZXingWASM !== 'undefined') {
         ZXingWASM.prepareZXingModule().catch(function() {});
       }
@@ -1012,11 +1205,83 @@
       loadUsersAndAutoLogin();
     }
 
+    /* Theme & Settings */
+    function loadTheme() {
+      try {
+        if (localStorage.getItem(THEME_KEY) === 'dark') {
+          document.body.classList.add('dark');
+          document.getElementById('btn-theme').textContent = '☀';
+        }
+      } catch (e) {}
+    }
+
+    function toggleTheme() {
+      const dark = document.body.classList.toggle('dark');
+      document.getElementById('btn-theme').textContent = dark ? '☀' : '🌙';
+      try { localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light'); } catch (e) {}
+    }
+
+    function toggleSettings() {
+      document.getElementById('settings-drawer').classList.toggle('hidden');
+    }
+
+    function loadSettingsState() {
+      try {
+        currentOpType = localStorage.getItem(OP_TYPE_KEY) || 'inventory';
+        currentLocation = localStorage.getItem(LOCATION_KEY) || '';
+      } catch (e) {}
+      document.getElementById('input-location').value = currentLocation;
+      renderOpButtons();
+      renderLocationChips();
+    }
+
+    function setOpType(op) {
+      currentOpType = op;
+      try { localStorage.setItem(OP_TYPE_KEY, op); } catch (e) {}
+      renderOpButtons();
+      updateHeaderLabel();
+    }
+
+    function renderOpButtons() {
+      document.querySelectorAll('.seg-btn').forEach(function(b) {
+        b.classList.toggle('active', b.getAttribute('data-op') === currentOpType);
+      });
+    }
+
+    function pickLocation(loc) {
+      document.getElementById('input-location').value = loc;
+      saveLocationSetting();
+    }
+
+    function saveLocationSetting() {
+      currentLocation = document.getElementById('input-location').value.trim();
+      try { localStorage.setItem(LOCATION_KEY, currentLocation); } catch (e) {}
+      renderLocationChips();
+      updateHeaderLabel();
+    }
+
+    function renderLocationChips() {
+      document.querySelectorAll('#settings-drawer .chip').forEach(function(ch) {
+        const val = ch.textContent === 'Без локации' ? '' : ch.textContent;
+        ch.classList.toggle('active', val === currentLocation);
+      });
+    }
+
+    function updateHeaderLabel() {
+      if (!currentUser) {
+        document.getElementById('header-user-label').textContent = 'Не выбран пользователь';
+        return;
+      }
+      const opNames = { inventory: '', 'in': ' • Приход (+)', out: ' • Расход (−)' };
+      const locTag = currentLocation ? (' • 📍' + currentLocation) : '';
+      document.getElementById('header-user-label').textContent =
+        '№' + currentUser.number + ' • ' + currentUser.name + (opNames[currentOpType] || '') + locTag;
+    }
+
     function loadQuickFlowSetting() {
       try {
-        const val = localStorage.getItem(QUICK_FLOW_KEY) === '1';
         const el = document.getElementById('toggle-quick-flow');
-        if (el) el.checked = val;
+        if (el) el.checked = localStorage.getItem(QUICK_FLOW_KEY) === '1';
       } catch (e) {}
     }
 
@@ -1032,20 +1297,118 @@
       return !!(el && el.checked);
     }
 
+    /* Local Catalog & User Cache (0ms lookup) */
+    function loadCachedCatalogAndUserItems() {
+      try {
+        const c = localStorage.getItem(CATALOG_CACHE_KEY);
+        if (c) catalogCache = JSON.parse(c) || [];
+        const u = localStorage.getItem(USER_ITEMS_CACHE_KEY);
+        if (u) userItemsCache = JSON.parse(u) || [];
+      } catch (e) {}
+    }
+
+    function saveCatalogCache(list) {
+      if (!Array.isArray(list)) return;
+      catalogCache = list;
+      try { localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(list)); } catch (e) {}
+      updateProgressBar();
+    }
+
+    function saveUserItemsCache(list) {
+      if (!Array.isArray(list)) return;
+      userItemsCache = list;
+      try { localStorage.setItem(USER_ITEMS_CACHE_KEY, JSON.stringify(list)); } catch (e) {}
+      updateProgressBar();
+    }
+
+    function stripZeroes(bc) {
+      return /^\d+$/.test(bc) ? (bc.replace(/^0+/, '') || '0') : bc;
+    }
+
+    function findInCatalogLocal(barcode) {
+      const bc = String(barcode || '').trim();
+      let match = catalogCache.find(function(x) { return x.barcode === bc; });
+      if (!match && /^\d+$/.test(bc)) {
+        const s = stripZeroes(bc);
+        match = catalogCache.find(function(x) { return /^\d+$/.test(x.barcode) && stripZeroes(x.barcode) === s; });
+      }
+      return match ? Object.assign({ found: true }, match) : { found: false, name: '', expectedQty: null, unit: '' };
+    }
+
+    function findInUserLocal(barcode) {
+      const bc = String(barcode || '').trim();
+      const loc = currentLocation;
+      let match = userItemsCache.find(function(x) { return x.barcode === bc && String(x.location || '') === loc; });
+      if (!match && /^\d+$/.test(bc)) {
+        const s = stripZeroes(bc);
+        match = userItemsCache.find(function(x) {
+          return /^\d+$/.test(x.barcode) && stripZeroes(x.barcode) === s && String(x.location || '') === loc;
+        });
+      }
+      return match ? Object.assign({ found: true }, match) : { found: false, name: '', expectedQty: null, factQty: null, updatedAt: '' };
+    }
+
+    function updateProgressBar() {
+      const card = document.getElementById('progress-card');
+      if (!card) return;
+      if (!catalogCache.length) {
+        card.classList.add('hidden');
+        return;
+      }
+      const countedSet = {};
+      userItemsCache.forEach(function(it) {
+        countedSet[it.barcode] = true;
+        if (/^\d+$/.test(it.barcode)) countedSet[stripZeroes(it.barcode)] = true;
+      });
+      let matched = 0;
+      catalogCache.forEach(function(it) {
+        if (countedSet[it.barcode] || (/^\d+$/.test(it.barcode) && countedSet[stripZeroes(it.barcode)])) {
+          matched++;
+        }
+      });
+      const pct = Math.round((matched / catalogCache.length) * 100);
+      document.getElementById('progress-label').textContent = 'Проверено по Базе: ' + matched + ' из ' + catalogCache.length;
+      document.getElementById('progress-pct').textContent = pct + '%';
+      document.getElementById('progress-fill').style.width = pct + '%';
+      card.classList.remove('hidden');
+    }
+
+    function syncCatalogAndUser(showFeedback) {
+      if (!currentUser) return;
+      if (showFeedback) showLoader(true);
+      callServer('getUserSync', { userNumber: currentUser.number },
+        function(res) {
+          if (showFeedback) showLoader(false);
+          if (res && res.ok) {
+            if (res.catalog) saveCatalogCache(res.catalog);
+            if (res.userItems) saveUserItemsCache(res.userItems);
+            if (res.recent) {
+              recentItems = res.recent;
+              renderActiveList();
+            }
+            if (showFeedback) showToast('Синхронизировано (' + catalogCache.length + ' в Базе)');
+          }
+        },
+        function() {
+          if (showFeedback) {
+            showLoader(false);
+            showToast('Нет сети — работаем из локального кэша');
+          }
+        }
+      );
+    }
+
+    /* Offline Queue */
     function getOfflineQueue() {
       try {
         const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
         const arr = raw ? JSON.parse(raw) : [];
         return Array.isArray(arr) ? arr : [];
-      } catch (e) {
-        return [];
-      }
+      } catch (e) { return []; }
     }
 
     function setOfflineQueue(arr) {
-      try {
-        localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(arr || []));
-      } catch (e) {}
+      try { localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(arr || [])); } catch (e) {}
       updateOfflineBanner();
     }
 
@@ -1089,50 +1452,45 @@
             const updated = getOfflineQueue();
             updated.shift();
             setOfflineQueue(updated);
-            if (currentUser && item.userNumber === currentUser.number && res.recent) {
-              renderRecent(res.recent);
+            if (currentUser && item.userNumber === currentUser.number) {
+              if (res.userItems) saveUserItemsCache(res.userItems);
+              if (res.recent) {
+                recentItems = res.recent;
+                renderActiveList();
+              }
             }
-            if (updated.length > 0) {
-              flushOfflineQueue(manual);
-            } else {
-              showToast('Офлайн-записи отправлены в таблицу');
-            }
+            if (updated.length > 0) flushOfflineQueue(manual);
+            else showToast('Офлайн-записи отправлены в таблицу');
           } else if (manual) {
-            showToast((res && res.error) || 'Не удалось отправить очередь');
+            showToast((res && res.error) || 'Ошибка отправки очереди');
           }
         },
         function() {
           isFlushingOffline = false;
-          if (manual) showToast('Ошибка сети при отправке очереди');
+          if (manual) showToast('Ошибка сети при отправке');
         }
       );
     }
 
-    function showLoader(show) {
-      document.getElementById('loader').classList.toggle('hidden', !show);
-    }
+    /* UI Helpers & Audio */
+    function showLoader(show) { document.getElementById('loader').classList.toggle('hidden', !show); }
 
     function showToast(msg) {
       const el = document.getElementById('toast');
       el.textContent = msg;
       el.classList.add('show');
-      setTimeout(() => el.classList.remove('show'), 2600);
+      setTimeout(function() { el.classList.remove('show'); }, 2500);
     }
 
     function showAlert(id, msg) {
       const el = document.getElementById(id);
-      if (!msg) {
-        el.textContent = '';
-        el.classList.remove('show');
-      } else {
-        el.textContent = msg;
-        el.classList.add('show');
-      }
+      if (!msg) { el.textContent = ''; el.classList.remove('show'); }
+      else { el.textContent = msg; el.classList.add('show'); }
     }
 
     function beepSuccess() {
       try {
-        if (navigator.vibrate) navigator.vibrate(80);
+        if (navigator.vibrate) navigator.vibrate(75);
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) return;
         const ctx = new AudioCtx();
@@ -1141,21 +1499,43 @@
         osc.type = 'sine';
         osc.frequency.setValueAtTime(1046.5, ctx.currentTime);
         gain.gain.setValueAtTime(0.12, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.14);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.13);
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start();
-        osc.stop(ctx.currentTime + 0.14);
+        osc.stop(ctx.currentTime + 0.13);
       } catch (e) {}
     }
 
+    function beepUnknown() {
+      try {
+        if (navigator.vibrate) navigator.vibrate([55, 45, 55]);
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        [0, 0.14].forEach(function(offset) {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(420, ctx.currentTime + offset);
+          gain.gain.setValueAtTime(0.12, ctx.currentTime + offset);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + offset + 0.11);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + offset);
+          osc.stop(ctx.currentTime + offset + 0.11);
+        });
+      } catch (e) {}
+    }
+
+    /* Login */
     function loadUsersAndAutoLogin() {
       showLoader(true);
       callServer('getUsers', {},
         function(res) {
           showLoader(false);
           if (!res || !res.ok) {
-            showAlert('login-error', (res && res.error) || 'Не удалось загрузить список пользователей.');
+            showAlert('login-error', (res && res.error) || 'Не удалось загрузить пользователей.');
             return;
           }
           usersList = res.users || [];
@@ -1166,7 +1546,7 @@
             if (saved) {
               const parsed = JSON.parse(saved);
               if (parsed && parsed.number) {
-                const match = usersList.find(u => u.number === parsed.number);
+                const match = usersList.find(function(u) { return u.number === parsed.number; });
                 if (match && !match.hasPin) {
                   performLogin(match.number, '');
                   return;
@@ -1191,25 +1571,22 @@
         tile.innerHTML =
           '<div class="user-num">' + escapeHtml(u.number) + '</div>' +
           '<div class="user-name">' + escapeHtml(u.name) + '</div>' +
-          (u.hasPin ? '<div class="user-pin-badge">🔒 Нужен PIN</div>' : '');
+          (u.hasPin ? '<div class="user-pin-badge">🔒 PIN</div>' : '');
 
         tile.onclick = function() {
-          document.querySelectorAll('.user-tile').forEach(t => t.classList.remove('selected'));
+          document.querySelectorAll('.user-tile').forEach(function(t) { t.classList.remove('selected'); });
           tile.classList.add('selected');
           document.getElementById('input-user-num').value = u.number;
           togglePinVisibility(u.hasPin);
-          if (!u.hasPin) {
-            performLogin(u.number, '');
-          } else {
-            document.getElementById('input-user-pin').focus();
-          }
+          if (!u.hasPin) performLogin(u.number, '');
+          else document.getElementById('input-user-pin').focus();
         };
         grid.appendChild(tile);
       });
 
       document.getElementById('input-user-num').oninput = function(e) {
         const val = e.target.value.trim();
-        const match = usersList.find(u => u.number === val);
+        const match = usersList.find(function(u) { return u.number === val; });
         togglePinVisibility(match ? match.hasPin : false);
       };
     }
@@ -1240,17 +1617,17 @@
             return;
           }
           currentUser = res.user;
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({ number: currentUser.number }));
-          } catch (e) {}
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ number: currentUser.number })); } catch (e) {}
 
-          document.getElementById('header-user-label').textContent =
-            '№' + currentUser.number + ' • ' + currentUser.name + ' (Лист: ' + currentUser.sheetName + ')';
-          document.getElementById('btn-switch-user').classList.remove('hidden');
+          if (res.catalog) saveCatalogCache(res.catalog);
+          if (res.userItems) saveUserItemsCache(res.userItems);
+          recentItems = res.recent || [];
 
+          updateHeaderLabel();
+          document.getElementById('btn-settings').classList.remove('hidden');
           document.getElementById('view-login').classList.add('hidden');
           document.getElementById('view-app').classList.remove('hidden');
-          renderRecent(res.recent || []);
+          renderActiveList();
           flushOfflineQueue(false);
         },
         function(err) {
@@ -1265,31 +1642,43 @@
       currentUser = null;
       try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
       closeProductCard();
+      document.getElementById('settings-drawer').classList.add('hidden');
       document.getElementById('view-app').classList.add('hidden');
       document.getElementById('view-login').classList.remove('hidden');
-      document.getElementById('btn-switch-user').classList.add('hidden');
-      document.getElementById('header-user-label').textContent = 'Не выбран пользователь';
+      document.getElementById('btn-settings').classList.add('hidden');
+      updateHeaderLabel();
     }
 
+    /* Wake Lock */
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator && !wakeLockObj) {
+          wakeLockObj = await navigator.wakeLock.request('screen');
+          wakeLockObj.addEventListener('release', function() { wakeLockObj = null; });
+        }
+      } catch (e) {}
+    }
+
+    function releaseWakeLock() {
+      try {
+        if (wakeLockObj) { wakeLockObj.release(); wakeLockObj = null; }
+      } catch (e) {}
+    }
+
+    /* Camera & Scanning */
     function toggleCamera() {
-      if (isScanning) {
-        stopCamera();
-      } else {
-        startCamera();
-      }
+      if (isScanning) stopCamera();
+      else startCamera();
     }
 
     async function startCamera() {
       showAlert('camera-alert', '');
       if (typeof ZXingWASM === 'undefined') {
-        showAlert('camera-alert', 'Библиотека сканера не загрузилась. Проверьте интернет или используйте ручной ввод.');
+        showAlert('camera-alert', 'Библиотека сканера не загрузилась. Проверьте интернет.');
         return;
       }
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        showAlert(
-          'camera-alert',
-          'Камера в прямом режиме недоступна в этом браузере. Используйте кнопку «📸 Скан по фото» или введите штрихкод вручную.'
-        );
+        showAlert('camera-alert', 'Прямая камера недоступна. Используйте «📸 По фото» или ручной ввод.');
         return;
       }
 
@@ -1302,26 +1691,18 @@
       btn.textContent = '⏹ Стоп';
       isScanning = true;
       box.classList.add('active-scan');
+      requestWakeLock();
 
       try {
         await ZXingWASM.prepareZXingModule();
         mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-          },
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
           audio: false
         });
 
-        if (!isScanning) {
-          stopCamera();
-          return;
-        }
-
+        if (!isScanning) { stopCamera(); return; }
         video.srcObject = mediaStream;
         await video.play();
-
         setupCameraCapabilities();
         scheduleNextFrame();
       } catch (err) {
@@ -1331,14 +1712,11 @@
           showAlert(
             'camera-alert',
             isInsideAppsScript()
-              ? 'Браузер заблокировал видеопоток (ограничение Google Apps Script на iPhone). Нажмите «📸 Скан по фото» или откройте страницу на GitHub Pages.'
-              : 'Доступ к камере запрещён. Разрешите камеру для сайта в настройках браузера или нажмите «📸 Скан по фото».'
+              ? 'Видеопоток заблокирован в Google Apps Script на iPhone. Нажмите «📸 По фото» или откройте ссылку GitHub Pages.'
+              : 'Доступ к камере запрещён. Разрешите камеру в настройках браузера или нажмите «📸 По фото».'
           );
         } else {
-          showAlert(
-            'camera-alert',
-            'Не удалось запустить видеокамеру (' + msg + '). Используйте «📸 Скан по фото» или ручной ввод.'
-          );
+          showAlert('camera-alert', 'Не удалось запустить камеру (' + msg + '). Используйте «📸 По фото».');
         }
       }
     }
@@ -1348,11 +1726,9 @@
       try {
         const track = mediaStream && mediaStream.getVideoTracks()[0];
         if (!track) return;
-
         if (track.applyConstraints) {
           track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function() {});
         }
-
         if (!track.getCapabilities) return;
         const caps = track.getCapabilities();
         const tools = document.getElementById('cam-tools');
@@ -1360,19 +1736,14 @@
         const btnZoom = document.getElementById('btn-zoom');
         let hasAny = false;
 
-        if (caps && caps.torch) {
-          btnTorch.classList.remove('hidden');
-          hasAny = true;
-        }
+        if (caps && caps.torch) { btnTorch.classList.remove('hidden'); hasAny = true; }
         if (caps && caps.zoom && caps.zoom.max >= 2) {
           maxZoomSupported = Math.min(2, caps.zoom.max);
           btnZoom.textContent = '🔍 1x';
           btnZoom.classList.remove('hidden');
           hasAny = true;
         }
-        if (hasAny) {
-          tools.classList.remove('hidden');
-        }
+        if (hasAny) tools.classList.remove('hidden');
       } catch (e) {}
     }
 
@@ -1384,16 +1755,8 @@
       const btnTorch = document.getElementById('btn-torch');
       const btnZoom = document.getElementById('btn-zoom');
       if (tools) tools.classList.add('hidden');
-      if (btnTorch) {
-        btnTorch.classList.add('hidden');
-        btnTorch.classList.remove('active');
-        btnTorch.textContent = '🔦 Свет';
-      }
-      if (btnZoom) {
-        btnZoom.classList.add('hidden');
-        btnZoom.classList.remove('active');
-        btnZoom.textContent = '🔍 1x';
-      }
+      if (btnTorch) { btnTorch.classList.add('hidden'); btnTorch.classList.remove('active'); btnTorch.textContent = '🔦 Свет'; }
+      if (btnZoom) { btnZoom.classList.add('hidden'); btnZoom.classList.remove('active'); btnZoom.textContent = '🔍 1x'; }
     }
 
     function toggleTorch() {
@@ -1444,14 +1807,16 @@
       const ox = (vw - visW) / 2;
       const oy = (vh - visH) / 2;
 
-      // Match .scan-frame (86% width, ~170px height with quiet-zone margin)
       const frameW = visW * 0.90;
       const frameH = Math.min(visH, (170 / bh) * visH);
       const sx = Math.max(0, Math.floor(ox + (visW - frameW) / 2));
       const sy = Math.max(0, Math.floor(oy + (visH - frameH) / 2));
-      const sw = Math.min(vw - sx, Math.floor(frameW));
-      const sh = Math.min(vh - sy, Math.floor(frameH));
-      return { sx: sx, sy: sy, sw: sw, sh: sh };
+      return {
+        sx: sx,
+        sy: sy,
+        sw: Math.min(vw - sx, Math.floor(frameW)),
+        sh: Math.min(vh - sy, Math.floor(frameH))
+      };
     }
 
     async function scanCurrentVideoFrame() {
@@ -1493,10 +1858,8 @@
 
     function stopCamera() {
       isScanning = false;
-      if (scanTimer) {
-        clearTimeout(scanTimer);
-        scanTimer = null;
-      }
+      releaseWakeLock();
+      if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
 
       resetCamTools();
       const box = document.getElementById('scanner-box');
@@ -1508,23 +1871,16 @@
       if (btn) btn.textContent = '📷 Камера';
       if (placeholder) placeholder.classList.remove('hidden');
 
-      if (video) {
-        try { video.pause(); } catch (e) {}
-        video.srcObject = null;
-      }
+      if (video) { try { video.pause(); } catch (e) {} video.srcObject = null; }
       if (mediaStream) {
-        try {
-          mediaStream.getTracks().forEach(function(t) { t.stop(); });
-        } catch (e) {}
+        try { mediaStream.getTracks().forEach(function(t) { t.stop(); }); } catch (e) {}
         mediaStream = null;
       }
     }
 
     function triggerPhotoScan() {
       showAlert('camera-alert', '');
-      if (isScanning) {
-        stopCamera();
-      }
+      if (isScanning) stopCamera();
       const input = document.getElementById('photo-input');
       input.value = '';
       input.click();
@@ -1533,27 +1889,21 @@
     async function handlePhotoSelected(event) {
       const files = event.target.files;
       if (!files || !files.length) return;
-      const file = files[0];
-
       if (typeof ZXingWASM === 'undefined') {
-        showAlert('camera-alert', 'Библиотека сканера не загрузилась. Проверьте интернет.');
+        showAlert('camera-alert', 'Библиотека сканера не загрузилась.');
         return;
       }
 
       showLoader(true);
       try {
         await ZXingWASM.prepareZXingModule();
-        const results = await ZXingWASM.readBarcodesFromImageFile(file, ZXING_PHOTO_OPTIONS);
+        const results = await ZXingWASM.readBarcodesFromImageFile(files[0], ZXING_PHOTO_OPTIONS);
         showLoader(false);
         if (results && results.length > 0 && results[0].text) {
-          beepSuccess();
-          if (isQuickFlowEnabled()) {
-            quickAddBarcode(results[0].text);
-          } else {
-            lookupScannedBarcode(results[0].text);
-          }
+          onBarcodeDetected(results[0].text);
         } else {
-          showAlert('camera-alert', 'Не удалось распознать штрихкод на фото. Попробуйте снять чуть ровнее и при хорошем освещении.');
+          beepUnknown();
+          showAlert('camera-alert', 'Не удалось распознать штрихкод на фото.');
         }
       } catch (e) {
         showLoader(false);
@@ -1563,69 +1913,173 @@
 
     function onScanSuccess(decodedText) {
       const now = Date.now();
-      if (decodedText === lastScanText && now - lastScanTime < 2200) {
-        return;
-      }
+      if (decodedText === lastScanText && now - lastScanTime < 2000) return;
       lastScanText = decodedText;
       lastScanTime = now;
 
-      beepSuccess();
-      if (isQuickFlowEnabled()) {
-        quickAddBarcode(decodedText);
-      } else {
+      if (!isQuickFlowEnabled()) {
         stopCamera();
-        lookupScannedBarcode(decodedText);
       }
+      onBarcodeDetected(decodedText);
     }
 
+    function onBarcodeDetected(code) {
+      const baseLocal = findInCatalogLocal(code);
+      if (baseLocal.found || catalogCache.length === 0) beepSuccess();
+      else beepUnknown();
+
+      if (isQuickFlowEnabled()) quickAddBarcode(code);
+      else openProductFromCacheOrServer(code);
+    }
+
+    /* Quick Flow (+1) & Undo */
     function quickAddBarcode(barcode) {
       if (!currentUser) return;
+      const bc = String(barcode).trim();
+      const baseLocal = findInCatalogLocal(bc);
+      const userLocal = findInUserLocal(bc);
+      const prevFact = (userLocal.found && userLocal.factQty !== null) ? userLocal.factQty : 0;
+      const delta = currentOpType === 'out' ? -1 : 1;
+      const nextFact = Math.max(0, Math.round((prevFact + delta) * 1000) / 1000);
+
+      // Optimistic local update
+      upsertLocalUserItem(bc, baseLocal.name || userLocal.name || '', baseLocal.expectedQty, nextFact);
+      showUndoBar(bc, nextFact);
+
       const payload = {
         userNumber: currentUser.number,
-        barcode: String(barcode).trim(),
+        barcode: bc,
         mode: 'add',
-        deltaQty: 1
+        deltaQty: 1,
+        opType: currentOpType,
+        location: currentLocation
       };
-      showToast('⚡ +1: ' + payload.barcode + '...');
 
       callServer('saveScan', payload,
         function(res) {
           if (res && res.ok) {
-            renderRecent(res.recent || []);
-            showToast('✓ ' + res.saved.barcode + ' — Факт: ' + res.saved.factQty);
+            if (res.userItems) saveUserItemsCache(res.userItems);
+            if (res.recent) { recentItems = res.recent; renderActiveList(); }
+            showToast('✓ ' + res.saved.barcode + ' — ' + res.saved.factQty);
           } else {
             showToast((res && res.error) || 'Ошибка сохранения');
           }
         },
         function() {
           enqueueOfflineSave(payload);
-          showToast('📴 Офлайн (+1 в очередь): ' + payload.barcode);
+          showToast('📴 Офлайн (+1 в очередь): ' + bc);
         }
       );
     }
 
-    function searchManualBarcode() {
-      const input = document.getElementById('manual-barcode');
-      const code = input.value.trim();
-      if (!code) {
-        showToast('Введите штрихкод');
-        return;
-      }
-      lookupScannedBarcode(code);
+    function showUndoBar(barcode, factQty) {
+      lastQuickUndo = barcode;
+      document.getElementById('undo-text').textContent = 'Последний: ' + barcode + ' (Факт: ' + factQty + ')';
+      document.getElementById('undo-bar').classList.remove('hidden');
     }
 
-    function lookupScannedBarcode(barcode) {
-      if (!currentUser) return;
-      showAlert('product-error', '');
-      showLoader(true);
+    function undoLastQuickScan() {
+      if (!lastQuickUndo || !currentUser) return;
+      const bc = lastQuickUndo;
+      document.getElementById('undo-bar').classList.add('hidden');
+      lastQuickUndo = null;
 
-      callServer('lookupBarcode', { userNumber: currentUser.number, barcode: barcode },
+      const payload = {
+        userNumber: currentUser.number,
+        barcode: bc,
+        mode: 'add',
+        deltaQty: -1,
+        opType: 'inventory',
+        location: currentLocation
+      };
+      callServer('saveScan', payload,
+        function(res) {
+          if (res && res.ok) {
+            if (res.userItems) saveUserItemsCache(res.userItems);
+            if (res.recent) { recentItems = res.recent; renderActiveList(); }
+            showToast('Откат −1: ' + bc + ' (Факт: ' + res.saved.factQty + ')');
+          }
+        },
+        function() {
+          enqueueOfflineSave(payload);
+          showToast('📴 Откат добавлен в очередь');
+        }
+      );
+    }
+
+    /* Search by Barcode OR Product Name */
+    function handleSearchInput() {
+      const q = document.getElementById('manual-barcode').value.trim().toLowerCase();
+      const dd = document.getElementById('search-dropdown');
+      if (q.length < 2 || !catalogCache.length) {
+        dd.classList.add('hidden');
+        return;
+      }
+      const matches = catalogCache.filter(function(item) {
+        return item.barcode.toLowerCase().indexOf(q) !== -1 ||
+               (item.name && item.name.toLowerCase().indexOf(q) !== -1);
+      }).slice(0, 8);
+
+      if (!matches.length) {
+        dd.classList.add('hidden');
+        return;
+      }
+
+      dd.innerHTML = '';
+      matches.forEach(function(item) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'search-opt';
+        btn.innerHTML =
+          '<span style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' +
+            escapeHtml(item.name || item.barcode) +
+          '</span>' +
+          '<span style="color:var(--muted); font-family:monospace; flex-shrink:0;">' + escapeHtml(item.barcode) + '</span>';
+        btn.onclick = function() {
+          dd.classList.add('hidden');
+          document.getElementById('manual-barcode').value = item.barcode;
+          openProductFromCacheOrServer(item.barcode);
+        };
+        dd.appendChild(btn);
+      });
+      dd.classList.remove('hidden');
+    }
+
+    function searchManualBarcode() {
+      document.getElementById('search-dropdown').classList.add('hidden');
+      const code = document.getElementById('manual-barcode').value.trim();
+      if (!code) { showToast('Введите штрихкод или название'); return; }
+      openProductFromCacheOrServer(code);
+    }
+
+    /* 0ms Instant Open from Cache + Background Verify */
+    function openProductFromCacheOrServer(barcode) {
+      if (!currentUser) return;
+      const bc = String(barcode).trim();
+
+      if (catalogCache.length > 0 || userItemsCache.length > 0) {
+        const localBase = findInCatalogLocal(bc);
+        const localUser = findInUserLocal(bc);
+        openProductCard({ barcode: bc, base: localBase, userRecord: localUser });
+
+        // Quietly refresh from server in background if online
+        callServer('lookupBarcode', { userNumber: currentUser.number, barcode: bc, location: currentLocation },
+          function(res) {
+            const openBc = document.getElementById('prod-barcode').textContent.trim();
+            if (res && res.ok && openBc === res.barcode && !document.getElementById('sheet-backdrop').classList.contains('hidden')) {
+              applyLookupStats(res);
+            }
+          },
+          function() {}
+        );
+        return;
+      }
+
+      showLoader(true);
+      callServer('lookupBarcode', { userNumber: currentUser.number, barcode: bc, location: currentLocation },
         function(res) {
           showLoader(false);
-          if (!res || !res.ok) {
-            showToast((res && res.error) || 'Ошибка поиска штрихкода');
-            return;
-          }
+          if (!res || !res.ok) { showToast((res && res.error) || 'Ошибка поиска'); return; }
           openProductCard(res);
         },
         function(err) {
@@ -1635,134 +2089,207 @@
       );
     }
 
-    function openProductCard(data) {
-      const card = document.getElementById('product-card');
-      card.classList.remove('hidden');
-
-      document.getElementById('prod-barcode').textContent = data.barcode;
-      document.getElementById('manual-barcode').value = data.barcode;
-
+    function applyLookupStats(data) {
       const base = data.base || {};
       const userRec = data.userRecord || {};
-
-      const resolvedName = base.name || userRec.name || '';
-      document.getElementById('prod-name').value = resolvedName;
-
+      const nameInput = document.getElementById('prod-name');
+      if (!nameInput.value.trim()) {
+        nameInput.value = base.name || userRec.name || '';
+      }
       const unitSuffix = base.unit ? (' ' + base.unit) : '';
-      currentExpectedQty = base.expectedQty !== null && base.expectedQty !== undefined ? base.expectedQty : null;
+      currentExpectedQty = (base.expectedQty !== null && base.expectedQty !== undefined) ? base.expectedQty : null;
 
       const addToBaseRow = document.getElementById('add-to-base-row');
-      const chkAddToBase = document.getElementById('chk-add-to-base');
-      chkAddToBase.checked = false;
-
       if (base.found && currentExpectedQty !== null) {
         document.getElementById('stat-expected').textContent = currentExpectedQty + unitSuffix;
-        document.getElementById('stat-expected-sub').textContent = 'Найдено в листе «База»';
+        document.getElementById('stat-expected-sub').textContent = 'Найдено в Базе';
         const fillBtn = document.getElementById('btn-fill-expected');
         fillBtn.textContent = '= По учёту (' + currentExpectedQty + ')';
         fillBtn.classList.remove('hidden');
         addToBaseRow.classList.add('hidden');
       } else if (base.found) {
         document.getElementById('stat-expected').textContent = '—';
-        document.getElementById('stat-expected-sub').textContent = 'В базе не указано кол-во';
+        document.getElementById('stat-expected-sub').textContent = 'Без учётного кол-ва';
         document.getElementById('btn-fill-expected').classList.add('hidden');
         addToBaseRow.classList.add('hidden');
       } else {
         document.getElementById('stat-expected').textContent = 'Нет';
-        document.getElementById('stat-expected-sub').textContent = 'Штрихкода нет в «Базе»';
+        document.getElementById('stat-expected-sub').textContent = 'Нет в Базе';
         document.getElementById('btn-fill-expected').classList.add('hidden');
         addToBaseRow.classList.remove('hidden');
       }
 
       const statusBadge = document.getElementById('prod-status-badge');
-      const qtyInput = document.getElementById('prod-qty');
       const deleteBtn = document.getElementById('btn-delete-scan');
-
       if (userRec.found && userRec.factQty !== null && userRec.factQty !== undefined) {
         document.getElementById('stat-prev').textContent = userRec.factQty + unitSuffix;
-        document.getElementById('stat-prev-sub').textContent = userRec.updatedAt || 'Ранее внесено';
-        qtyInput.value = userRec.factQty;
-        statusBadge.textContent = 'Повторное сканирование';
-        statusBadge.style.color = '#2563eb';
+        document.getElementById('stat-prev-sub').textContent = userRec.updatedAt || 'Внесено';
+        statusBadge.textContent = 'В листе';
+        statusBadge.style.color = 'var(--accent)';
         deleteBtn.classList.remove('hidden');
       } else {
         document.getElementById('stat-prev').textContent = '0';
-        document.getElementById('stat-prev-sub').textContent = 'Ещё не вносилось вами';
-        qtyInput.value = 1;
-        statusBadge.textContent = 'Новая позиция';
-        statusBadge.style.color = '#0f766e';
+        document.getElementById('stat-prev-sub').textContent = 'Ещё не вносилось';
+        statusBadge.textContent = 'Новое';
+        statusBadge.style.color = 'var(--primary)';
         deleteBtn.classList.add('hidden');
       }
+      updateDiffPreview();
+    }
 
-      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    function openProductCard(data) {
+      showAlert('product-error', '');
+      document.getElementById('prod-barcode').textContent = data.barcode;
+      document.getElementById('manual-barcode').value = data.barcode;
+      document.getElementById('prod-name').value = (data.base && data.base.name) || (data.userRecord && data.userRecord.name) || '';
+      document.getElementById('chk-add-to-base').checked = false;
+
+      const qtyInput = document.getElementById('prod-qty');
+      if (currentOpType === 'in') {
+        document.getElementById('qty-mode-label').textContent = 'Приход (+ к текущему):';
+        qtyInput.value = 1;
+      } else if (currentOpType === 'out') {
+        document.getElementById('qty-mode-label').textContent = 'Расход (− от текущего):';
+        qtyInput.value = 1;
+      } else {
+        document.getElementById('qty-mode-label').textContent = 'Фактически в наличии:';
+        const u = data.userRecord || {};
+        qtyInput.value = (u.found && u.factQty !== null && u.factQty !== undefined) ? u.factQty : 1;
+      }
+
+      applyLookupStats(data);
+      document.getElementById('sheet-backdrop').classList.remove('hidden');
     }
 
     function closeProductCard() {
-      document.getElementById('product-card').classList.add('hidden');
+      document.getElementById('sheet-backdrop').classList.add('hidden');
       showAlert('product-error', '');
+    }
+
+    function updateDiffPreview() {
+      const pill = document.getElementById('diff-pill');
+      if (currentExpectedQty === null || currentOpType !== 'inventory') {
+        pill.classList.add('hidden');
+        return;
+      }
+      const val = parseFloat(String(document.getElementById('prod-qty').value).replace(',', '.'));
+      if (!Number.isFinite(val)) { pill.classList.add('hidden'); return; }
+
+      const diff = Math.round((val - currentExpectedQty) * 1000) / 1000;
+      pill.className = 'diff-pill';
+      if (diff === 0) {
+        pill.classList.add('diff-ok');
+        pill.textContent = 'Совпадает (0)';
+      } else if (diff < 0) {
+        pill.classList.add('diff-neg');
+        pill.textContent = 'Разница: ' + diff;
+      } else {
+        pill.classList.add('diff-pos');
+        pill.textContent = 'Разница: +' + diff;
+      }
     }
 
     function fillExpectedQty() {
       if (currentExpectedQty !== null) {
         document.getElementById('prod-qty').value = currentExpectedQty;
+        updateDiffPreview();
       }
+    }
+
+    function setQtyExact(val) {
+      document.getElementById('prod-qty').value = val;
+      updateDiffPreview();
     }
 
     function adjustQty(delta) {
       const input = document.getElementById('prod-qty');
       const current = parseFloat(String(input.value).replace(',', '.'));
       const baseVal = Number.isFinite(current) ? current : 0;
-      const next = Math.max(0, Math.round((baseVal + delta) * 1000) / 1000);
-      input.value = next;
+      input.value = Math.max(0, Math.round((baseVal + delta) * 1000) / 1000);
+      updateDiffPreview();
     }
 
+    function upsertLocalUserItem(barcode, name, expectedQty, factQty) {
+      const nowStr = new Date().toLocaleString('ru-RU');
+      const loc = currentLocation;
+      const idx = userItemsCache.findIndex(function(x) {
+        return x.barcode === barcode && String(x.location || '') === loc;
+      });
+      const rec = {
+        barcode: barcode,
+        name: name,
+        expectedQty: expectedQty,
+        factQty: factQty,
+        location: loc,
+        updatedAt: nowStr
+      };
+      if (idx >= 0) userItemsCache[idx] = rec;
+      else userItemsCache.unshift(rec);
+
+      const rIdx = recentItems.findIndex(function(x) {
+        return x.barcode === barcode && String(x.location || '') === loc;
+      });
+      if (rIdx >= 0) recentItems.splice(rIdx, 1);
+      recentItems.unshift(rec);
+      if (recentItems.length > 15) recentItems.pop();
+
+      saveUserItemsCache(userItemsCache);
+      renderActiveList();
+    }
+
+    /* Optimistic Save */
     function saveCurrentProduct() {
       if (!currentUser) return;
       const barcode = document.getElementById('prod-barcode').textContent.trim();
       const productName = document.getElementById('prod-name').value.trim();
       const rawQty = String(document.getElementById('prod-qty').value).replace(',', '.').trim();
-      const factQty = Number(rawQty);
+      const qtyVal = Number(rawQty);
 
-      if (!rawQty || !Number.isFinite(factQty) || factQty < 0) {
+      if (!rawQty || !Number.isFinite(qtyVal) || qtyVal < 0) {
         showAlert('product-error', 'Введите корректное количество (0 или больше).');
         return;
       }
 
       const addToBase = !!document.getElementById('chk-add-to-base').checked;
+      const localPrev = findInUserLocal(barcode);
+      const prevQty = (localPrev.found && localPrev.factQty !== null) ? localPrev.factQty : 0;
+      let optimisticFact = qtyVal;
+      if (currentOpType === 'in') optimisticFact = Math.round((prevQty + qtyVal) * 1000) / 1000;
+      else if (currentOpType === 'out') optimisticFact = Math.max(0, Math.round((prevQty - qtyVal) * 1000) / 1000);
 
-      showAlert('product-error', '');
-      showLoader(true);
+      upsertLocalUserItem(barcode, productName, currentExpectedQty, optimisticFact);
+      if (addToBase && !findInCatalogLocal(barcode).found) {
+        catalogCache.push({ barcode: barcode, name: productName, expectedQty: null, unit: '' });
+        saveCatalogCache(catalogCache);
+      }
+
+      document.getElementById('manual-barcode').value = '';
+      closeProductCard();
+      showToast('Сохранено: ' + barcode + ' — ' + optimisticFact);
 
       const payload = {
         userNumber: currentUser.number,
         barcode: barcode,
-        factQty: factQty,
+        factQty: qtyVal,
+        opType: currentOpType,
         productName: productName,
-        addToBase: addToBase
+        addToBase: addToBase,
+        location: currentLocation
       };
 
       callServer('saveScan', payload,
         function(res) {
-          showLoader(false);
-          if (!res || !res.ok) {
-            showAlert('product-error', (res && res.error) || 'Не удалось сохранить данные.');
-            return;
+          if (res && res.ok) {
+            if (res.catalog) saveCatalogCache(res.catalog);
+            if (res.userItems) saveUserItemsCache(res.userItems);
+            if (res.recent) { recentItems = res.recent; renderActiveList(); }
+          } else {
+            showToast((res && res.error) || 'Ошибка сохранения на сервере');
           }
-
-          renderRecent(res.recent || []);
-          document.getElementById('manual-barcode').value = '';
-          closeProductCard();
-          showToast(
-            (res.action === 'updated' ? 'Обновлено: ' : 'Добавлено: ') +
-            res.saved.barcode + ' — ' + res.saved.factQty
-          );
         },
-        function(err) {
-          showLoader(false);
+        function() {
           enqueueOfflineSave(payload);
-          document.getElementById('manual-barcode').value = '';
-          closeProductCard();
-          showToast('📴 Нет сети — сохранено в очередь (' + barcode + ')');
+          showToast('📴 Нет сети — сохранено в очередь');
         }
       );
     }
@@ -1770,19 +2297,18 @@
     function deleteCurrentProduct() {
       if (!currentUser) return;
       const barcode = document.getElementById('prod-barcode').textContent.trim();
-      if (!barcode) return;
-      if (!confirm('Удалить штрихкод ' + barcode + ' из вашего листа?')) return;
+      if (!barcode || !confirm('Удалить штрихкод ' + barcode + ' из вашего листа?')) return;
 
-      showAlert('product-error', '');
       showLoader(true);
-      callServer('deleteScan', { userNumber: currentUser.number, barcode: barcode },
+      callServer('deleteScan', { userNumber: currentUser.number, barcode: barcode, location: currentLocation },
         function(res) {
           showLoader(false);
           if (!res || !res.ok) {
-            showAlert('product-error', (res && res.error) || 'Не удалось удалить запись.');
+            showAlert('product-error', (res && res.error) || 'Не удалось удалить.');
             return;
           }
-          renderRecent(res.recent || []);
+          if (res.userItems) saveUserItemsCache(res.userItems);
+          if (res.recent) { recentItems = res.recent; renderActiveList(); }
           document.getElementById('manual-barcode').value = '';
           closeProductCard();
           showToast('Удалено: ' + barcode);
@@ -1794,31 +2320,60 @@
       );
     }
 
-    function refreshRecent() {
-      if (!currentUser) return;
-      showLoader(true);
-      callServer('getRecentForUser', { userNumber: currentUser.number },
-        function(res) {
-          showLoader(false);
-          if (res && res.ok) {
-            renderRecent(res.recent || []);
-          }
-        },
-        function() {
-          showLoader(false);
-        }
-      );
+    /* List Tabs: Недавние / Не посчитано */
+    function switchListTab(tab) {
+      activeListTab = tab;
+      document.getElementById('tab-recent').classList.toggle('active', tab === 'recent');
+      document.getElementById('tab-uncounted').classList.toggle('active', tab === 'uncounted');
+      renderActiveList();
     }
 
-    function renderRecent(items) {
+    function renderActiveList() {
       const container = document.getElementById('recent-list');
-      if (!items || !items.length) {
+      if (activeListTab === 'uncounted') {
+        if (!catalogCache.length) {
+          container.innerHTML = '<div style="color:var(--muted); font-size:13px;">Лист «База» пока пуст</div>';
+          return;
+        }
+        const counted = {};
+        userItemsCache.forEach(function(it) {
+          counted[it.barcode] = true;
+          if (/^\d+$/.test(it.barcode)) counted[stripZeroes(it.barcode)] = true;
+        });
+        const missing = catalogCache.filter(function(it) {
+          return !counted[it.barcode] && !(/^\d+$/.test(it.barcode) && counted[stripZeroes(it.barcode)]);
+        });
+        if (!missing.length) {
+          container.innerHTML = '<div style="color:var(--success); font-size:13px; font-weight:600;">✓ Все товары из Базы посчитаны!</div>';
+          return;
+        }
+        container.innerHTML = '';
+        missing.slice(0, 30).forEach(function(item) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'recent-item';
+          btn.innerHTML =
+            '<div class="recent-info">' +
+              '<div class="recent-name">' + escapeHtml(item.name || 'Без названия') + '</div>' +
+              '<div class="recent-meta">' + escapeHtml(item.barcode) + '</div>' +
+            '</div>' +
+            '<div class="recent-qty">' +
+              '<div class="recent-fact" style="color:var(--muted);">—</div>' +
+              '<div class="recent-exp">Учёт: ' + escapeHtml(item.expectedQty !== null ? String(item.expectedQty) : '—') + '</div>' +
+            '</div>';
+          btn.onclick = function() { openProductFromCacheOrServer(item.barcode); };
+          container.appendChild(btn);
+        });
+        return;
+      }
+
+      if (!recentItems || !recentItems.length) {
         container.innerHTML = '<div style="color:var(--muted); font-size:13px;">Пока нет записей в вашем листе</div>';
         return;
       }
 
       container.innerHTML = '';
-      items.forEach(function(item) {
+      recentItems.forEach(function(item) {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'recent-item';
@@ -1826,22 +2381,35 @@
         const expText = item.expectedQty !== null && item.expectedQty !== undefined
           ? ('Учёт: ' + item.expectedQty)
           : 'Нет в базе';
+        const locTag = item.location ? (' • 📍' + item.location) : '';
 
         btn.innerHTML =
           '<div class="recent-info">' +
             '<div class="recent-name">' + escapeHtml(title) + '</div>' +
-            '<div class="recent-meta">' + escapeHtml(item.barcode) + ' • ' + escapeHtml(item.updatedAt || '') + '</div>' +
+            '<div class="recent-meta">' + escapeHtml(item.barcode + locTag) + '</div>' +
           '</div>' +
           '<div class="recent-qty">' +
             '<div class="recent-fact">' + escapeHtml(String(item.factQty !== null ? item.factQty : '—')) + '</div>' +
             '<div class="recent-exp">' + escapeHtml(expText) + '</div>' +
           '</div>';
 
-        btn.onclick = function() {
-          lookupScannedBarcode(item.barcode);
-        };
+        btn.onclick = function() { openProductFromCacheOrServer(item.barcode); };
         container.appendChild(btn);
       });
+    }
+
+    /* QR Label Modal */
+    function openQrModal() {
+      const bc = document.getElementById('prod-barcode').textContent.trim();
+      const name = document.getElementById('prod-name').value.trim();
+      document.getElementById('qr-title').textContent = name || 'Товар';
+      document.getElementById('qr-code-text').textContent = bc;
+      document.getElementById('qr-img').src = 'https://quickchart.io/qr?size=220&text=' + encodeURIComponent(bc);
+      document.getElementById('qr-modal').classList.remove('hidden');
+    }
+
+    function closeQrModal() {
+      document.getElementById('qr-modal').classList.add('hidden');
     }
 
     function escapeHtml(str) {
