@@ -263,6 +263,30 @@
       pointer-events: none;
     }
 
+    .scan-laser {
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      height: 3px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(239, 68, 68, 0) 0%, #ef4444 15%, #ff1f1f 50%, #ef4444 85%, rgba(239, 68, 68, 0) 100%);
+      box-shadow: 0 0 10px 2px rgba(239, 68, 68, 0.85), 0 0 22px 4px rgba(239, 68, 68, 0.45);
+      z-index: 15;
+      pointer-events: none;
+      display: none;
+      animation: scan-sweep 1.8s ease-in-out infinite;
+    }
+
+    .scanner-box.active-scan .scan-laser {
+      display: block;
+    }
+
+    @keyframes scan-sweep {
+      0% { top: 20%; }
+      50% { top: 78%; }
+      100% { top: 20%; }
+    }
+
     .btn-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -598,8 +622,9 @@
       <div class="card" id="scanner-card">
         <h2 class="card-title">Сканирование штрих-кода</h2>
 
-        <div class="scanner-box">
+        <div class="scanner-box" id="scanner-box">
           <div id="reader"></div>
+          <div class="scan-laser" aria-hidden="true"></div>
           <div id="scanner-placeholder" class="scanner-placeholder">
             Нажмите «Камера» для сканирования в реальном времени или «Скан по фото» (удобно на iPhone)
           </div>
@@ -956,6 +981,7 @@
       }
 
       const qr = ensureQrInstance();
+      const box = document.getElementById('scanner-box');
       const placeholder = document.getElementById('scanner-placeholder');
       const btn = document.getElementById('btn-toggle-cam');
 
@@ -974,16 +1000,20 @@
       qr.start({ facingMode: 'environment' }, config, onScanSuccess, function() {})
         .then(function() {
           isScanning = true;
+          box.classList.add('active-scan');
         })
         .catch(function(err) {
           isScanning = false;
+          box.classList.remove('active-scan');
           placeholder.classList.remove('hidden');
           btn.textContent = '📷 Камера';
           const msg = String(err || '');
           if (msg.indexOf('NotAllowedError') !== -1 || msg.indexOf('Permission') !== -1) {
             showAlert(
               'camera-alert',
-              'Браузер заблокировал прямой доступ к видеопотоку (на iPhone это ограничение Google Apps Script). Нажмите кнопку «📸 Скан по фото» — камера откроется штатно и распознает штрихкод.'
+              isInsideAppsScript()
+                ? 'Браузер заблокировал прямой доступ к видеопотоку (ограничение Google Apps Script на iPhone). Нажмите кнопку «📸 Скан по фото» или откройте сайт на GitHub Pages.'
+                : 'Доступ к камере запрещён в браузере. Разрешите камеру для этого сайта в настройках браузера или используйте «📸 Скан по фото».'
             );
           } else {
             showAlert(
@@ -995,8 +1025,10 @@
     }
 
     function stopCamera() {
+      const box = document.getElementById('scanner-box');
       const btn = document.getElementById('btn-toggle-cam');
       const placeholder = document.getElementById('scanner-placeholder');
+      box.classList.remove('active-scan');
       if (html5QrCode && isScanning) {
         isScanning = false;
         html5QrCode.stop()
