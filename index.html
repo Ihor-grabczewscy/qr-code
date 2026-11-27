@@ -804,10 +804,11 @@
 
   <header class="app-header">
     <div class="header-title">
-      <span>Сканер товаров <small style="font-weight:500; opacity:0.65; font-size:11px;">v2.4</small></span>
+      <span><span data-i18n="appTitle">Сканер товаров</span> <small style="font-weight:500; opacity:0.65; font-size:11px;">v2.5</small></span>
       <span class="header-sub" id="header-user-label">Не выбран пользователь</span>
     </div>
     <div class="header-actions">
+      <button type="button" class="icon-btn" id="btn-lang" onclick="toggleLanguage()" style="font-size:12px; font-weight:800;" title="Язык / Język">RU</button>
       <button type="button" class="icon-btn" id="btn-sound" onclick="toggleSound()" title="Звук">🔊</button>
       <button type="button" class="icon-btn" id="btn-theme" onclick="toggleTheme()" title="Тема">🌙</button>
       <button type="button" class="icon-btn hidden" id="btn-settings" onclick="toggleSettings()" title="Настройки">⚙</button>
@@ -818,30 +819,36 @@
 
     <!-- ЭКРАН 0: ПРИВЯЗКА К APPS SCRIPT -->
     <section id="view-api-setup" class="card hidden">
-      <h2 class="card-title">Подключение к Google Таблице</h2>
-      <p style="font-size:13px; color:var(--muted); margin:0 0 12px 0;">
-        Вставьте ссылку развёртывания Google Apps Script (<code>https://script.google.com/macros/s/.../exec</code>).
+      <h2 class="card-title" data-i18n="apiTitle">Подключение к Google Таблице</h2>
+      <p style="font-size:13px; color:var(--muted); margin:0 0 12px 0;" data-i18n="apiDesc">
+        Вставьте ссылку развёртывания Google Apps Script (https://script.google.com/macros/s/.../exec).
       </p>
       <div class="field-group">
         <input type="url" id="input-api-url" class="input" placeholder="https://script.google.com/macros/s/.../exec">
       </div>
-      <button class="btn btn-primary" onclick="saveApiUrl()">Подключить</button>
+      <button class="btn btn-primary" onclick="saveApiUrl()" data-i18n="apiBtn">Подключить</button>
       <div id="api-setup-error" class="alert alert-error"></div>
     </section>
 
     <!-- ЭКРАН 1: ВХОД ПО НОМЕРУ ПОЛЬЗОВАТЕЛЯ -->
     <section id="view-login" class="card">
-      <h2 class="card-title">Выберите ваш номер пользователя</h2>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
+        <h2 class="card-title" style="margin:0;" data-i18n="loginTitle">Выберите ваш номер пользователя</h2>
+        <div class="tab-row">
+          <button type="button" class="tab-btn active" id="login-lang-ru" onclick="setLanguage('ru')">RU</button>
+          <button type="button" class="tab-btn" id="login-lang-pl" onclick="setLanguage('pl')">PL</button>
+        </div>
+      </div>
       <div id="user-grid" class="user-grid"></div>
       <div class="field-group">
-        <label class="field-label" for="input-user-num">Или введите номер вручную</label>
-        <input type="text" id="input-user-num" class="input" inputmode="numeric" placeholder="Например: 1">
+        <label class="field-label" for="input-user-num" data-i18n="loginManualLabel">Или введите номер вручную</label>
+        <input type="text" id="input-user-num" class="input" inputmode="numeric" placeholder="Например: 1" data-i18n-ph="loginManualPh">
       </div>
       <div class="field-group hidden" id="pin-group">
-        <label class="field-label" for="input-user-pin">PIN-код</label>
-        <input type="password" id="input-user-pin" class="input" inputmode="numeric" placeholder="Введите PIN">
+        <label class="field-label" for="input-user-pin" data-i18n="pinLabel">PIN-код</label>
+        <input type="password" id="input-user-pin" class="input" inputmode="numeric" placeholder="Введите PIN" data-i18n-ph="pinPh">
       </div>
-      <button class="btn btn-primary" onclick="submitLogin()">Войти</button>
+      <button class="btn btn-primary" onclick="submitLogin()" data-i18n="loginBtn">Войти</button>
       <div id="login-error" class="alert alert-error"></div>
     </section>
 
@@ -850,34 +857,34 @@
 
       <!-- Скрываемая панель настроек ⚙ -->
       <div id="settings-drawer" class="settings-drawer hidden">
-        <div class="field-label">Режим работы:</div>
+        <div class="field-label" data-i18n="opModeLabel">Режим работы:</div>
         <div class="seg-group">
-          <button type="button" class="seg-btn" data-op="inventory" onclick="setOpType('inventory')">Инвентар.</button>
-          <button type="button" class="seg-btn" data-op="in" onclick="setOpType('in')">Приход (+)</button>
-          <button type="button" class="seg-btn" data-op="out" onclick="setOpType('out')">Расход (−)</button>
+          <button type="button" class="seg-btn" data-op="inventory" onclick="setOpType('inventory')" data-i18n="opInv">Инвентар.</button>
+          <button type="button" class="seg-btn" data-op="in" onclick="setOpType('in')" data-i18n="opIn">Приход (+)</button>
+          <button type="button" class="seg-btn" data-op="out" onclick="setOpType('out')" data-i18n="opOut">Расход (−)</button>
         </div>
 
-        <div class="field-label">Локация / зона (необязательно):</div>
-        <input type="text" id="input-location" class="input" placeholder="Напр.: Склад или Теплица 1" oninput="saveLocationSetting()">
+        <div class="field-label" data-i18n="locLabel">Локация / зона (необязательно):</div>
+        <input type="text" id="input-location" class="input" placeholder="Напр.: Склад или Теплица 1" data-i18n-ph="locPh" oninput="saveLocationSetting()">
         <div class="chip-row">
-          <button type="button" class="chip" onclick="pickLocation('')">Без локации</button>
-          <button type="button" class="chip" onclick="pickLocation('Склад')">Склад</button>
-          <button type="button" class="chip" onclick="pickLocation('Теплица 1')">Теплица 1</button>
-          <button type="button" class="chip" onclick="pickLocation('Площадка')">Площадка</button>
+          <button type="button" class="chip" data-loc="" onclick="pickLocation('')" data-i18n="locNone">Без локации</button>
+          <button type="button" class="chip" data-loc-i18n="locWarehouse" onclick="pickLocation(t('locWarehouse'))" data-i18n="locWarehouse">Склад</button>
+          <button type="button" class="chip" data-loc-i18n="locGreenhouse" onclick="pickLocation(t('locGreenhouse'))" data-i18n="locGreenhouse">Теплица 1</button>
+          <button type="button" class="chip" data-loc-i18n="locYard" onclick="pickLocation(t('locYard'))" data-i18n="locYard">Площадка</button>
         </div>
 
         <label class="check-row">
           <input type="checkbox" id="chk-scan-tick" onchange="saveAudioSettings()">
-          <span>⏱ Тихий «тик» пока ищет камера</span>
+          <span data-i18n="scanTickLabel">⏱ Тихий «тик» пока ищет камера</span>
         </label>
         <label class="check-row">
           <input type="checkbox" id="chk-voice" onchange="saveAudioSettings()">
-          <span>🗣 Озвучивать результат голосом</span>
+          <span data-i18n="voiceLabel">🗣 Озвучивать результат голосом</span>
         </label>
 
         <div class="btn-row">
-          <button type="button" class="btn btn-secondary btn-sm" style="width:100%;" onclick="syncCatalogAndUser(true)">🔄 Синхр. Базу</button>
-          <button type="button" class="btn btn-outline btn-sm" style="width:100%;" onclick="switchUser()">👤 Сменить №</button>
+          <button type="button" class="btn btn-secondary btn-sm" style="width:100%;" onclick="syncCatalogAndUser(true)" data-i18n="btnSync">🔄 Синхр. Базу</button>
+          <button type="button" class="btn btn-outline btn-sm" style="width:100%;" onclick="switchUser()" data-i18n="btnSwitchUser">👤 Сменить №</button>
         </div>
       </div>
 
@@ -893,7 +900,7 @@
       <!-- Офлайн-очередь -->
       <div id="offline-banner" class="offline-banner hidden">
         <span id="offline-text">⏳ В очереди: 0</span>
-        <button type="button" class="btn btn-outline btn-sm" onclick="flushOfflineQueue(true)">Отправить</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="flushOfflineQueue(true)" data-i18n="btnSendQueue">Отправить</button>
       </div>
 
       <!-- Блок сканирования -->
@@ -901,12 +908,12 @@
         <div class="scanner-box" id="scanner-box">
           <video id="cam-video" playsinline muted autoplay></video>
           <div class="scan-overlay" aria-hidden="true">
-            <div class="scan-badge"><span class="scan-dot"></span>Идёт сканирование</div>
+            <div class="scan-badge"><span class="scan-dot"></span><span data-i18n="scanningBadge">Идёт сканирование</span></div>
             <div class="scan-frame" id="scan-frame">
               <div class="scan-laser"></div>
             </div>
           </div>
-          <div id="scanner-placeholder" class="scanner-placeholder">
+          <div id="scanner-placeholder" class="scanner-placeholder" data-i18n="scannerPlaceholder">
             Нажмите «Камера» для сканирования или «По фото»
           </div>
         </div>
@@ -918,26 +925,26 @@
 
         <div class="btn-row">
           <button class="btn btn-primary" id="btn-toggle-cam" onclick="toggleCamera()">📷 Камера</button>
-          <button class="btn btn-accent" onclick="triggerPhotoScan()">📸 По фото</button>
+          <button class="btn btn-accent" onclick="triggerPhotoScan()" data-i18n="btnPhoto">📸 По фото</button>
         </div>
         <input type="file" id="photo-input" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoSelected(event)">
 
         <label class="switch-row">
-          <span>⚡ Быстрый поток (+1 сразу в таблицу)</span>
+          <span data-i18n="quickFlowLabel">⚡ Быстрый поток (+1 сразу в таблицу)</span>
           <input type="checkbox" id="toggle-quick-flow" onchange="saveQuickFlowSetting()">
         </label>
 
         <div id="undo-bar" class="undo-bar hidden">
           <span id="undo-text"></span>
-          <button type="button" class="btn btn-outline btn-sm" onclick="undoLastQuickScan()">Отменить −1</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="undoLastQuickScan()" data-i18n="btnUndo">Отменить −1</button>
         </div>
 
         <div id="camera-alert" class="alert alert-warn"></div>
 
         <div class="search-wrap">
           <div class="manual-row">
-            <input type="text" id="manual-barcode" class="input" placeholder="Штрихкод или название..." oninput="handleSearchInput()" onkeydown="if(event.key==='Enter') searchManualBarcode()">
-            <button class="btn btn-secondary" onclick="searchManualBarcode()">Найти</button>
+            <input type="text" id="manual-barcode" class="input" placeholder="Штрихкод или название..." data-i18n-ph="searchPh" oninput="handleSearchInput()" onkeydown="if(event.key==='Enter') searchManualBarcode()">
+            <button class="btn btn-secondary" onclick="searchManualBarcode()" data-i18n="btnFind">Найти</button>
           </div>
           <div id="search-dropdown" class="search-dropdown hidden"></div>
         </div>
@@ -947,13 +954,13 @@
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
           <div class="tab-row">
-            <button type="button" class="tab-btn active" id="tab-recent" onclick="switchListTab('recent')">Недавние</button>
-            <button type="button" class="tab-btn" id="tab-uncounted" onclick="switchListTab('uncounted')">Не посчитано</button>
+            <button type="button" class="tab-btn active" id="tab-recent" onclick="switchListTab('recent')" data-i18n="tabRecent">Недавние</button>
+            <button type="button" class="tab-btn" id="tab-uncounted" onclick="switchListTab('uncounted')" data-i18n="tabUncounted">Не посчитано</button>
           </div>
-          <button class="btn btn-outline btn-sm" onclick="syncCatalogAndUser(true)">Обновить</button>
+          <button class="btn btn-outline btn-sm" onclick="syncCatalogAndUser(true)" data-i18n="btnRefresh">Обновить</button>
         </div>
         <div id="recent-list" class="recent-list">
-          <div style="color:var(--muted); font-size:13px;">Пока нет записей</div>
+          <div style="color:var(--muted); font-size:13px;" data-i18n="noRecords">Пока нет записей</div>
         </div>
       </div>
 
@@ -970,28 +977,28 @@
         <span class="barcode-pill" id="prod-barcode">—</span>
         <div style="display:flex; align-items:center; gap:6px;">
           <span id="prod-status-badge" style="font-size:12px; font-weight:700;"></span>
-          <button type="button" class="btn btn-outline btn-sm" onclick="openQrModal()" title="QR-этикетка">🏷 QR</button>
-          <button type="button" class="btn btn-outline btn-sm" onclick="closeProductCard()" aria-label="Закрыть">✕</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="openQrModal()" title="QR">🏷 QR</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="closeProductCard()" aria-label="Close">✕</button>
         </div>
       </div>
 
       <div class="field-group">
-        <input type="text" id="prod-name" class="input" placeholder="Наименование товара (необязательно)">
+        <input type="text" id="prod-name" class="input" placeholder="Наименование товара (необязательно)" data-i18n-ph="prodNamePh">
       </div>
 
       <label class="check-row hidden" id="add-to-base-row">
         <input type="checkbox" id="chk-add-to-base">
-        <span>Добавить новый штрихкод в общий лист «База»</span>
+        <span data-i18n="addToBaseLabel">Добавить новый штрихкод в общий лист «База»</span>
       </label>
 
       <div class="stat-grid">
         <div class="stat-box">
-          <div class="stat-label">По учёту (База)</div>
+          <div class="stat-label" data-i18n="statExpectedLabel">По учёту (База)</div>
           <div class="stat-val" id="stat-expected">—</div>
           <div class="stat-sub" id="stat-expected-sub"></div>
         </div>
         <div class="stat-box">
-          <div class="stat-label">В вашем листе</div>
+          <div class="stat-label" data-i18n="statPrevLabel">В вашем листе</div>
           <div class="stat-val" id="stat-prev">—</div>
           <div class="stat-sub" id="stat-prev-sub"></div>
         </div>
@@ -1019,8 +1026,8 @@
 
       <div class="sheet-actions">
         <button type="button" class="btn btn-danger-icon hidden" id="btn-delete-scan" onclick="deleteCurrentProduct()" title="Удалить">🗑</button>
-        <button type="button" class="btn btn-outline" onclick="closeProductCard()">Отмена</button>
-        <button type="button" class="btn btn-primary" onclick="saveCurrentProduct()">Сохранить</button>
+        <button type="button" class="btn btn-outline" onclick="closeProductCard()" data-i18n="btnCancel">Отмена</button>
+        <button type="button" class="btn btn-primary" onclick="saveCurrentProduct()" data-i18n="btnSave">Сохранить</button>
       </div>
     </div>
   </div>
@@ -1032,8 +1039,8 @@
       <div style="font-family:monospace; font-size:14px; color:#475569; margin-bottom:10px;" id="qr-code-text"></div>
       <img id="qr-img" src="" alt="QR" style="width:200px; height:200px; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:12px;">
       <div class="btn-row no-print">
-        <button type="button" class="btn btn-outline" onclick="closeQrModal()">Закрыть</button>
-        <button type="button" class="btn btn-primary" onclick="window.print()">🖨 Печать</button>
+        <button type="button" class="btn btn-outline" onclick="closeQrModal()" data-i18n="btnClose">Закрыть</button>
+        <button type="button" class="btn btn-primary" onclick="window.print()" data-i18n="btnPrint">🖨 Печать</button>
       </div>
     </div>
   </div>
@@ -1054,8 +1061,245 @@
     const SOUND_KEY = 'barcode_app_sound_v1';
     const SCAN_TICK_KEY = 'barcode_app_scan_tick_v1';
     const VOICE_KEY = 'barcode_app_voice_v1';
+    const LANG_KEY = 'barcode_app_lang_v1';
     const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbwywsP8VT9XOkgmtqysbKS80wvbN6JEEQxejWTdb1PYkCJBsJL1q-IuvNB6ePrxiCxQ/exec';
 
+    const I18N = {
+      ru: {
+        appTitle: 'Сканер товаров',
+        docTitle: 'Сканер штрих-кодов',
+        noUserSelected: 'Не выбран пользователь',
+        userLabelPrefix: '№',
+        userDefaultName: 'Пользователь ',
+        apiTitle: 'Подключение к Google Таблице',
+        apiDesc: 'Вставьте ссылку развёртывания Google Apps Script (https://script.google.com/macros/s/.../exec).',
+        apiBtn: 'Подключить',
+        apiErrInvalid: 'Укажите корректную ссылку https://script.google.com/macros/s/.../exec',
+        apiErrMissing: 'Не указан адрес Google Apps Script.',
+        loginTitle: 'Выберите ваш номер пользователя',
+        loginManualLabel: 'Или введите номер вручную',
+        loginManualPh: 'Например: 1',
+        pinLabel: 'PIN-код',
+        pinPh: 'Введите PIN',
+        pinBadge: '🔒 PIN',
+        loginBtn: 'Войти',
+        loginErrEmpty: 'Выберите или введите номер пользователя.',
+        loginErrLoad: 'Не удалось загрузить пользователей.',
+        loginErrConn: 'Ошибка связи с сервером.',
+        loginErrAuth: 'Ошибка входа.',
+        loginErrServer: 'Ошибка сервера.',
+        opModeLabel: 'Режим работы:',
+        opInv: 'Инвентар.',
+        opIn: 'Приход (+)',
+        opOut: 'Расход (−)',
+        opTagIn: ' • Приход (+)',
+        opTagOut: ' • Расход (−)',
+        locLabel: 'Локация / зона (необязательно):',
+        locPh: 'Напр.: Склад или Теплица 1',
+        locNone: 'Без локации',
+        locWarehouse: 'Склад',
+        locGreenhouse: 'Теплица 1',
+        locYard: 'Площадка',
+        scanTickLabel: '⏱ Тихий «тик» пока ищет камера',
+        voiceLabel: '🗣 Озвучивать результат голосом',
+        btnSync: '🔄 Синхр. Базу',
+        btnSwitchUser: '👤 Сменить №',
+        progressText: 'Проверено по Базе: {m} из {t}',
+        offlineText: '⏳ В очереди на отправку: {n}',
+        btnSendQueue: 'Отправить',
+        queueSent: 'Офлайн-записи отправлены в таблицу',
+        queueErr: 'Ошибка отправки очереди',
+        queueNetErr: 'Ошибка сети при отправке',
+        queueEmpty: 'Очередь пуста',
+        noInternet: 'Нет подключения к интернету',
+        syncedToast: 'Синхронизировано ({n} в Базе)',
+        cacheModeToast: 'Нет сети — работаем из локального кэша',
+        scanningBadge: 'Идёт сканирование',
+        scannerPlaceholder: 'Нажмите «Камера» для сканирования или «По фото»',
+        btnCamStart: '📷 Камера',
+        btnCamStop: '⏹ Стоп',
+        btnPhoto: '📸 По фото',
+        torchOff: '🔦 Свет',
+        torchOn: '🔦 Вкл',
+        quickFlowLabel: '⚡ Быстрый поток (+1 сразу в таблицу)',
+        btnUndo: 'Отменить −1',
+        lastQuick: 'Последний: {bc} (Факт: {qty})',
+        undoToast: 'Откат −1: {bc} (Факт: {qty})',
+        undoOfflineToast: '📴 Откат добавлен в очередь',
+        searchPh: 'Штрихкод или название...',
+        btnFind: 'Найти',
+        enterBarcodeOrName: 'Введите штрихкод или название',
+        tabRecent: 'Недавние',
+        tabUncounted: 'Не посчитано',
+        btnRefresh: 'Обновить',
+        noRecords: 'Пока нет записей в вашем листе',
+        baseEmpty: 'Лист «База» пока пуст',
+        allCounted: '✓ Все товары из Базы посчитаны!',
+        noTitle: 'Без названия',
+        expectedShort: 'Учёт: {n}',
+        notInBaseShort: 'Нет в базе',
+        prodNamePh: 'Наименование товара (необязательно)',
+        addToBaseLabel: 'Добавить новый штрихкод в общий лист «База»',
+        statExpectedLabel: 'По учёту (База)',
+        statPrevLabel: 'В вашем листе',
+        foundInBase: 'Найдено в Базе',
+        noQtyInBase: 'Без учётного кол-ва',
+        notInBase: 'Нет в Базе',
+        noWord: 'Нет',
+        savedWord: 'Внесено',
+        notScannedYet: 'Ещё не вносилось',
+        statusInSheet: 'В листе',
+        statusNew: 'Новое',
+        qtyModeInv: 'Фактически в наличии:',
+        qtyModeIn: 'Приход (+ к текущему):',
+        qtyModeOut: 'Расход (− от текущего):',
+        diffOk: 'Совпадает (0)',
+        diffNeg: 'Разница: {d}',
+        diffPos: 'Разница: +{d}',
+        fillExpectedBtn: '= По учёту ({n})',
+        btnCancel: 'Отмена',
+        btnSave: 'Сохранить',
+        btnClose: 'Закрыть',
+        btnPrint: '🖨 Печать',
+        itemWord: 'Товар',
+        errInvalidQty: 'Введите корректное количество (0 или больше).',
+        savedToast: 'Сохранено: {bc} — {qty}',
+        serverSaveErr: 'Ошибка сохранения на сервере',
+        offlineSaveToast: '📴 Нет сети — сохранено в очередь',
+        offlineQuickToast: '📴 Офлайн (+1 в очередь): {bc}',
+        confirmDelete: 'Удалить штрихкод {bc} из вашего листа?',
+        deleteErr: 'Не удалось удалить.',
+        deleteSrvErr: 'Ошибка удаления.',
+        deletedToast: 'Удалено: {bc}',
+        lookupErr: 'Ошибка поиска',
+        libNotLoaded: 'Библиотека сканера не загрузилась. Проверьте интернет.',
+        camUnavailable: 'Прямая камера недоступна. Используйте «📸 По фото» или ручной ввод.',
+        camBlockedGas: 'Видеопоток заблокирован в Google Apps Script на iPhone. Нажмите «📸 По фото» или откройте ссылку GitHub Pages.',
+        camBlocked: 'Доступ к камере запрещён. Разрешите камеру в настройках браузера или нажмите «📸 По фото».',
+        camFail: 'Не удалось запустить камеру ({msg}). Используйте «📸 По фото».',
+        photoFail: 'Не удалось распознать штрихкод на фото.',
+        photoErr: 'Ошибка обработки фото: {msg}',
+        voiceNotInBase: 'Нет в базе'
+      },
+      pl: {
+        appTitle: 'Skaner towarów',
+        docTitle: 'Skaner kodów kreskowych',
+        noUserSelected: 'Nie wybrano użytkownika',
+        userLabelPrefix: 'Nr ',
+        userDefaultName: 'Użytkownik ',
+        apiTitle: 'Połączenie z Arkuszem Google',
+        apiDesc: 'Wklej link wdrożenia Google Apps Script (https://script.google.com/macros/s/.../exec).',
+        apiBtn: 'Połącz',
+        apiErrInvalid: 'Podaj prawidłowy link https://script.google.com/macros/s/.../exec',
+        apiErrMissing: 'Brak adresu Google Apps Script.',
+        loginTitle: 'Wybierz swój numer użytkownika',
+        loginManualLabel: 'Lub wpisz numer ręcznie',
+        loginManualPh: 'Np.: 1',
+        pinLabel: 'Kod PIN',
+        pinPh: 'Wpisz PIN',
+        pinBadge: '🔒 PIN',
+        loginBtn: 'Zaloguj się',
+        loginErrEmpty: 'Wybierz lub wpisz numer użytkownika.',
+        loginErrLoad: 'Nie udało się pobrać listy użytkowników.',
+        loginErrConn: 'Błąd połączenia z serwerem.',
+        loginErrAuth: 'Błąd logowania.',
+        loginErrServer: 'Błąd serwera.',
+        opModeLabel: 'Tryb pracy:',
+        opInv: 'Inwentarz.',
+        opIn: 'Przyjęcie (+)',
+        opOut: 'Wydanie (−)',
+        opTagIn: ' • Przyjęcie (+)',
+        opTagOut: ' • Wydanie (−)',
+        locLabel: 'Lokalizacja / strefa (opcjonalnie):',
+        locPh: 'Np.: Magazyn lub Szklarnia 1',
+        locNone: 'Brak lokalizacji',
+        locWarehouse: 'Magazyn',
+        locGreenhouse: 'Szklarnia 1',
+        locYard: 'Plac',
+        scanTickLabel: '⏱ Ciche „pik” podczas skanowania',
+        voiceLabel: '🗣 Czytaj wynik głosowo',
+        btnSync: '🔄 Odśwież bazę',
+        btnSwitchUser: '👤 Zmień nr',
+        progressText: 'Sprawdzono z Bazy: {m} z {t}',
+        offlineText: '⏳ W kolejce do wysłania: {n}',
+        btnSendQueue: 'Wyślij',
+        queueSent: 'Zaległe wpisy zostały wysłane do arkusza',
+        queueErr: 'Błąd wysyłania kolejki',
+        queueNetErr: 'Błąd sieci podczas wysyłania',
+        queueEmpty: 'Kolejka jest pusta',
+        noInternet: 'Brak połączenia z internetem',
+        syncedToast: 'Zsynchronizowano ({n} w Bazie)',
+        cacheModeToast: 'Brak sieci — praca z pamięci lokalnej',
+        scanningBadge: 'Trwa skanowanie',
+        scannerPlaceholder: 'Naciśnij „Kamera”, aby skanować, lub „Ze zdjęcia”',
+        btnCamStart: '📷 Kamera',
+        btnCamStop: '⏹ Stop',
+        btnPhoto: '📸 Ze zdjęcia',
+        torchOff: '🔦 Światło',
+        torchOn: '🔦 Wł.',
+        quickFlowLabel: '⚡ Szybki tryb (+1 od razu do arkusza)',
+        btnUndo: 'Cofnij −1',
+        lastQuick: 'Ostatni: {bc} (Stan: {qty})',
+        undoToast: 'Cofnięto −1: {bc} (Stan: {qty})',
+        undoOfflineToast: '📴 Cofnięcie dodane do kolejki',
+        searchPh: 'Kod kreskowy lub nazwa...',
+        btnFind: 'Szukaj',
+        enterBarcodeOrName: 'Wpisz kod kreskowy lub nazwę',
+        tabRecent: 'Ostatnie',
+        tabUncounted: 'Niepoliczone',
+        btnRefresh: 'Odśwież',
+        noRecords: 'Brak wpisów w Twoim arkuszu',
+        baseEmpty: 'Arkusz „Baza” jest jeszcze pusty',
+        allCounted: '✓ Wszystkie towary z Bazy zostały policzone!',
+        noTitle: 'Bez nazwy',
+        expectedShort: 'Baza: {n}',
+        notInBaseShort: 'Brak w bazie',
+        prodNamePh: 'Nazwa towaru (opcjonalnie)',
+        addToBaseLabel: 'Dodaj nowy kod do wspólnego arkusza „Baza”',
+        statExpectedLabel: 'Wg Bazy (stan)',
+        statPrevLabel: 'W Twoim arkuszu',
+        foundInBase: 'Znaleziono w Bazie',
+        noQtyInBase: 'Brak ilości w Bazie',
+        notInBase: 'Brak w Bazie',
+        noWord: 'Brak',
+        savedWord: 'Zapisano',
+        notScannedYet: 'Jeszcze nie skanowano',
+        statusInSheet: 'W arkuszu',
+        statusNew: 'Nowe',
+        qtyModeInv: 'Stan faktyczny (ilość):',
+        qtyModeIn: 'Przyjęcie (+ do obecnego):',
+        qtyModeOut: 'Wydanie (− od obecnego):',
+        diffOk: 'Zgodne (0)',
+        diffNeg: 'Różnica: {d}',
+        diffPos: 'Różnica: +{d}',
+        fillExpectedBtn: '= Wg Bazy ({n})',
+        btnCancel: 'Anuluj',
+        btnSave: 'Zapisz',
+        btnClose: 'Zamknij',
+        btnPrint: '🖨 Drukuj',
+        itemWord: 'Towar',
+        errInvalidQty: 'Podaj prawidłową ilość (0 lub więcej).',
+        savedToast: 'Zapisano: {bc} — {qty}',
+        serverSaveErr: 'Błąd zapisu na serwerze',
+        offlineSaveToast: '📴 Brak sieci — zapisano w kolejce',
+        offlineQuickToast: '📴 Tryb offline (+1 w kolejce): {bc}',
+        confirmDelete: 'Usunąć kod {bc} z Twojego arkusza?',
+        deleteErr: 'Nie udało się usunąć.',
+        deleteSrvErr: 'Błąd usuwania.',
+        deletedToast: 'Usunięto: {bc}',
+        lookupErr: 'Błąd wyszukiwania',
+        libNotLoaded: 'Nie udało się załadować skanera. Sprawdź internet.',
+        camUnavailable: 'Kamera na żywo niedostępna. Użyj „📸 Ze zdjęcia” lub wpisz kod ręcznie.',
+        camBlockedGas: 'Strumień wideo zablokowany w Google Apps Script na iPhone. Użyj „📸 Ze zdjęcia” lub otwórz link GitHub Pages.',
+        camBlocked: 'Brak dostępu do kamery. Zezwól na dostęp w ustawieniach przeglądarki lub użyj „📸 Ze zdjęcia”.',
+        camFail: 'Nie udało się uruchomić kamery ({msg}). Użyj „📸 Ze zdjęcia”.',
+        photoFail: 'Nie udało się rozpoznać kodu na zdjęciu.',
+        photoErr: 'Błąd przetwarzania zdjęcia: {msg}',
+        voiceNotInBase: 'Brak w bazie'
+      }
+    };
+
+    let currentLang = 'ru';
     let usersList = [];
     let currentUser = null;
     let catalogCache = [];
@@ -1206,11 +1450,13 @@
     }
 
     function initApp() {
+      loadLanguage();
       loadTheme();
       loadAudioSettings();
       loadSettingsState();
       loadQuickFlowSetting();
       loadCachedCatalogAndUserItems();
+      applyLanguage();
       updateOfflineBanner();
 
       if (!isInsideAppsScript() && 'serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
@@ -1225,6 +1471,69 @@
         return;
       }
       loadUsersAndAutoLogin();
+    }
+
+    /* Localization (RU / PL) */
+    function t(key, vars) {
+      const dict = I18N[currentLang] || I18N.ru;
+      let str = (dict[key] !== undefined ? dict[key] : I18N.ru[key]) || key;
+      if (vars) {
+        Object.keys(vars).forEach(function(k) {
+          str = str.replace(new RegExp('\\{' + k + '\\}', 'g'), String(vars[k]));
+        });
+      }
+      return str;
+    }
+
+    function loadLanguage() {
+      try {
+        const saved = localStorage.getItem(LANG_KEY);
+        if (saved === 'pl' || saved === 'ru') currentLang = saved;
+      } catch (e) {}
+    }
+
+    function toggleLanguage() {
+      setLanguage(currentLang === 'ru' ? 'pl' : 'ru');
+    }
+
+    function setLanguage(lang) {
+      currentLang = (lang === 'pl') ? 'pl' : 'ru';
+      try { localStorage.setItem(LANG_KEY, currentLang); } catch (e) {}
+      applyLanguage();
+    }
+
+    function applyLanguage() {
+      document.documentElement.lang = currentLang;
+      document.title = t('docTitle');
+
+      const btnLang = document.getElementById('btn-lang');
+      if (btnLang) btnLang.textContent = currentLang.toUpperCase();
+
+      const ruTab = document.getElementById('login-lang-ru');
+      const plTab = document.getElementById('login-lang-pl');
+      if (ruTab) ruTab.classList.toggle('active', currentLang === 'ru');
+      if (plTab) plTab.classList.toggle('active', currentLang === 'pl');
+
+      document.querySelectorAll('[data-i18n]').forEach(function(el) {
+        el.textContent = t(el.getAttribute('data-i18n'));
+      });
+      document.querySelectorAll('[data-i18n-ph]').forEach(function(el) {
+        el.placeholder = t(el.getAttribute('data-i18n-ph'));
+      });
+
+      const camBtn = document.getElementById('btn-toggle-cam');
+      if (camBtn) camBtn.textContent = isScanning ? t('btnCamStop') : t('btnCamStart');
+
+      const torchBtn = document.getElementById('btn-torch');
+      if (torchBtn) torchBtn.textContent = torchOn ? t('torchOn') : t('torchOff');
+
+      renderLocationChips();
+      updateHeaderLabel();
+      renderUserGrid();
+      updateProgressBar();
+      updateOfflineBanner();
+      renderActiveList();
+      updateDiffPreview();
     }
 
     /* Theme & Settings */
@@ -1284,20 +1593,28 @@
 
     function renderLocationChips() {
       document.querySelectorAll('#settings-drawer .chip').forEach(function(ch) {
-        const val = ch.textContent === 'Без локации' ? '' : ch.textContent;
+        const isEmptyChip = ch.getAttribute('data-loc') === '';
+        const val = isEmptyChip ? '' : ch.textContent;
         ch.classList.toggle('active', val === currentLocation);
       });
     }
 
+    function displayUserName(u) {
+      if (currentLang === 'pl' && u.name === 'Пользователь ' + u.number) {
+        return t('userDefaultName') + u.number;
+      }
+      return u.name;
+    }
+
     function updateHeaderLabel() {
       if (!currentUser) {
-        document.getElementById('header-user-label').textContent = 'Не выбран пользователь';
+        document.getElementById('header-user-label').textContent = t('noUserSelected');
         return;
       }
-      const opNames = { inventory: '', 'in': ' • Приход (+)', out: ' • Расход (−)' };
+      const opNames = { inventory: '', 'in': t('opTagIn'), out: t('opTagOut') };
       const locTag = currentLocation ? (' • 📍' + currentLocation) : '';
       document.getElementById('header-user-label').textContent =
-        '№' + currentUser.number + ' • ' + currentUser.name + (opNames[currentOpType] || '') + locTag;
+        t('userLabelPrefix') + currentUser.number + ' • ' + displayUserName(currentUser) + (opNames[currentOpType] || '') + locTag;
     }
 
     function loadQuickFlowSetting() {
@@ -1389,7 +1706,7 @@
         }
       });
       const pct = Math.round((matched / catalogCache.length) * 100);
-      document.getElementById('progress-label').textContent = 'Проверено по Базе: ' + matched + ' из ' + catalogCache.length;
+      document.getElementById('progress-label').textContent = t('progressText', { m: matched, t: catalogCache.length });
       document.getElementById('progress-pct').textContent = pct + '%';
       document.getElementById('progress-fill').style.width = pct + '%';
       card.classList.remove('hidden');
@@ -1408,13 +1725,13 @@
               recentItems = res.recent;
               renderActiveList();
             }
-            if (showFeedback) showToast('Синхронизировано (' + catalogCache.length + ' в Базе)');
+            if (showFeedback) showToast(t('syncedToast', { n: catalogCache.length }));
           }
         },
         function() {
           if (showFeedback) {
             showLoader(false);
-            showToast('Нет сети — работаем из локального кэша');
+            showToast(t('cacheModeToast'));
           }
         }
       );
@@ -1440,7 +1757,7 @@
       const text = document.getElementById('offline-text');
       if (!banner || !text) return;
       if (q.length > 0) {
-        text.textContent = '⏳ В очереди на отправку: ' + q.length;
+        text.textContent = t('offlineText', { n: q.length });
         banner.classList.remove('hidden');
       } else {
         banner.classList.add('hidden');
@@ -1457,11 +1774,11 @@
       if (isFlushingOffline) return;
       const q = getOfflineQueue();
       if (!q.length) {
-        if (manual) showToast('Очередь пуста');
+        if (manual) showToast(t('queueEmpty'));
         return;
       }
       if (!navigator.onLine) {
-        if (manual) showToast('Нет подключения к интернету');
+        if (manual) showToast(t('noInternet'));
         return;
       }
 
@@ -1482,14 +1799,14 @@
               }
             }
             if (updated.length > 0) flushOfflineQueue(manual);
-            else showToast('Офлайн-записи отправлены в таблицу');
+            else showToast(t('queueSent'));
           } else if (manual) {
-            showToast((res && res.error) || 'Ошибка отправки очереди');
+            showToast((res && res.error) || t('queueErr'));
           }
         },
         function() {
           isFlushingOffline = false;
-          if (manual) showToast('Ошибка сети при отправке');
+          if (manual) showToast(t('queueNetErr'));
         }
       );
     }
@@ -1641,7 +1958,7 @@
         if (!('speechSynthesis' in window)) return;
         window.speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(String(text));
-        u.lang = 'ru-RU';
+        u.lang = currentLang === 'pl' ? 'pl-PL' : 'ru-RU';
         u.rate = 1.15;
         window.speechSynthesis.speak(u);
       } catch (e) {}
@@ -1654,7 +1971,7 @@
         function(res) {
           showLoader(false);
           if (!res || !res.ok) {
-            showAlert('login-error', (res && res.error) || 'Не удалось загрузить пользователей.');
+            showAlert('login-error', (res && res.error) || t('loginErrLoad'));
             return;
           }
           usersList = res.users || [];
@@ -1676,24 +1993,25 @@
         },
         function(err) {
           showLoader(false);
-          showAlert('login-error', (err && err.message) || 'Ошибка связи с сервером.');
+          showAlert('login-error', (err && err.message) || t('loginErrConn'));
         }
       );
     }
 
     function renderUserGrid() {
       const grid = document.getElementById('user-grid');
+      if (!grid) return;
       grid.innerHTML = '';
       usersList.forEach(function(u) {
         const tile = document.createElement('div');
         tile.className = 'user-tile';
         tile.innerHTML =
           '<div class="user-num">' + escapeHtml(u.number) + '</div>' +
-          '<div class="user-name">' + escapeHtml(u.name) + '</div>' +
-          (u.hasPin ? '<div class="user-pin-badge">🔒 PIN</div>' : '');
+          '<div class="user-name">' + escapeHtml(displayUserName(u)) + '</div>' +
+          (u.hasPin ? '<div class="user-pin-badge">' + escapeHtml(t('pinBadge')) + '</div>' : '');
 
         tile.onclick = function() {
-          document.querySelectorAll('.user-tile').forEach(function(t) { t.classList.remove('selected'); });
+          document.querySelectorAll('.user-tile').forEach(function(tEl) { tEl.classList.remove('selected'); });
           tile.classList.add('selected');
           document.getElementById('input-user-num').value = u.number;
           togglePinVisibility(u.hasPin);
@@ -1719,7 +2037,7 @@
       const num = document.getElementById('input-user-num').value.trim();
       const pin = document.getElementById('input-user-pin').value.trim();
       if (!num) {
-        showAlert('login-error', 'Выберите или введите номер пользователя.');
+        showAlert('login-error', t('loginErrEmpty'));
         return;
       }
       performLogin(num, pin);
@@ -1732,7 +2050,7 @@
         function(res) {
           showLoader(false);
           if (!res || !res.ok) {
-            showAlert('login-error', (res && res.error) || 'Ошибка входа.');
+            showAlert('login-error', (res && res.error) || t('loginErrAuth'));
             return;
           }
           currentUser = res.user;
@@ -1751,7 +2069,7 @@
         },
         function(err) {
           showLoader(false);
-          showAlert('login-error', (err && err.message) || 'Ошибка сервера.');
+          showAlert('login-error', (err && err.message) || t('loginErrServer'));
         }
       );
     }
@@ -1794,11 +2112,11 @@
     async function startCamera() {
       showAlert('camera-alert', '');
       if (typeof ZXingWASM === 'undefined') {
-        showAlert('camera-alert', 'Библиотека сканера не загрузилась. Проверьте интернет.');
+        showAlert('camera-alert', t('libNotLoaded'));
         return;
       }
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        showAlert('camera-alert', 'Прямая камера недоступна. Используйте «📸 По фото» или ручной ввод.');
+        showAlert('camera-alert', t('camUnavailable'));
         return;
       }
 
@@ -1808,7 +2126,7 @@
       const btn = document.getElementById('btn-toggle-cam');
 
       placeholder.classList.add('hidden');
-      btn.textContent = '⏹ Стоп';
+      btn.textContent = t('btnCamStop');
       isScanning = true;
       box.classList.add('active-scan');
       requestWakeLock();
@@ -1832,12 +2150,10 @@
         if (msg.indexOf('NotAllowedError') !== -1 || msg.indexOf('Permission') !== -1) {
           showAlert(
             'camera-alert',
-            isInsideAppsScript()
-              ? 'Видеопоток заблокирован в Google Apps Script на iPhone. Нажмите «📸 По фото» или откройте ссылку GitHub Pages.'
-              : 'Доступ к камере запрещён. Разрешите камеру в настройках браузера или нажмите «📸 По фото».'
+            isInsideAppsScript() ? t('camBlockedGas') : t('camBlocked')
           );
         } else {
-          showAlert('camera-alert', 'Не удалось запустить камеру (' + msg + '). Используйте «📸 По фото».');
+          showAlert('camera-alert', t('camFail', { msg: msg }));
         }
       }
     }
@@ -1876,7 +2192,7 @@
       const btnTorch = document.getElementById('btn-torch');
       const btnZoom = document.getElementById('btn-zoom');
       if (tools) tools.classList.add('hidden');
-      if (btnTorch) { btnTorch.classList.add('hidden'); btnTorch.classList.remove('active'); btnTorch.textContent = '🔦 Свет'; }
+      if (btnTorch) { btnTorch.classList.add('hidden'); btnTorch.classList.remove('active'); btnTorch.textContent = t('torchOff'); }
       if (btnZoom) { btnZoom.classList.add('hidden'); btnZoom.classList.remove('active'); btnZoom.textContent = '🔍 1x'; }
     }
 
@@ -1889,7 +2205,7 @@
           .then(function() {
             const btn = document.getElementById('btn-torch');
             btn.classList.toggle('active', torchOn);
-            btn.textContent = torchOn ? '🔦 Вкл' : '🔦 Свет';
+            btn.textContent = torchOn ? t('torchOn') : t('torchOff');
           })
           .catch(function() { torchOn = !torchOn; });
       } catch (e) {}
@@ -1990,7 +2306,7 @@
       const placeholder = document.getElementById('scanner-placeholder');
 
       if (box) box.classList.remove('active-scan');
-      if (btn) btn.textContent = '📷 Камера';
+      if (btn) btn.textContent = t('btnCamStart');
       if (placeholder) placeholder.classList.remove('hidden');
 
       if (video) { try { video.pause(); } catch (e) {} video.srcObject = null; }
@@ -2012,7 +2328,7 @@
       const files = event.target.files;
       if (!files || !files.length) return;
       if (typeof ZXingWASM === 'undefined') {
-        showAlert('camera-alert', 'Библиотека сканера не загрузилась.');
+        showAlert('camera-alert', t('libNotLoaded'));
         return;
       }
 
@@ -2025,11 +2341,11 @@
           onBarcodeDetected(results[0].text);
         } else {
           beepUnknown();
-          showAlert('camera-alert', 'Не удалось распознать штрихкод на фото.');
+          showAlert('camera-alert', t('photoFail'));
         }
       } catch (e) {
         showLoader(false);
-        showAlert('camera-alert', 'Ошибка обработки фото: ' + (e.message || e));
+        showAlert('camera-alert', t('photoErr', { msg: e.message || e }));
       }
     }
 
@@ -2052,7 +2368,7 @@
         if (voiceEnabled && baseLocal.name) speakText(baseLocal.name);
       } else {
         beepUnknown();
-        if (voiceEnabled) speakText('Нет в базе');
+        if (voiceEnabled) speakText(t('voiceNotInBase'));
       }
 
       if (isQuickFlowEnabled()) quickAddBarcode(code);
@@ -2089,19 +2405,19 @@
             if (res.recent) { recentItems = res.recent; renderActiveList(); }
             showToast('✓ ' + res.saved.barcode + ' — ' + res.saved.factQty);
           } else {
-            showToast((res && res.error) || 'Ошибка сохранения');
+            showToast((res && res.error) || t('serverSaveErr'));
           }
         },
         function() {
           enqueueOfflineSave(payload);
-          showToast('📴 Офлайн (+1 в очередь): ' + bc);
+          showToast(t('offlineQuickToast', { bc: bc }));
         }
       );
     }
 
     function showUndoBar(barcode, factQty) {
       lastQuickUndo = barcode;
-      document.getElementById('undo-text').textContent = 'Последний: ' + barcode + ' (Факт: ' + factQty + ')';
+      document.getElementById('undo-text').textContent = t('lastQuick', { bc: barcode, qty: factQty });
       document.getElementById('undo-bar').classList.remove('hidden');
     }
 
@@ -2124,12 +2440,12 @@
           if (res && res.ok) {
             if (res.userItems) saveUserItemsCache(res.userItems);
             if (res.recent) { recentItems = res.recent; renderActiveList(); }
-            showToast('Откат −1: ' + bc + ' (Факт: ' + res.saved.factQty + ')');
+            showToast(t('undoToast', { bc: bc, qty: res.saved.factQty }));
           }
         },
         function() {
           enqueueOfflineSave(payload);
-          showToast('📴 Откат добавлен в очередь');
+          showToast(t('undoOfflineToast'));
         }
       );
     }
@@ -2175,7 +2491,7 @@
     function searchManualBarcode() {
       document.getElementById('search-dropdown').classList.add('hidden');
       const code = document.getElementById('manual-barcode').value.trim();
-      if (!code) { showToast('Введите штрихкод или название'); return; }
+      if (!code) { showToast(t('enterBarcodeOrName')); return; }
       openProductFromCacheOrServer(code);
     }
 
@@ -2206,12 +2522,12 @@
       callServer('lookupBarcode', { userNumber: currentUser.number, barcode: bc, location: currentLocation },
         function(res) {
           showLoader(false);
-          if (!res || !res.ok) { showToast((res && res.error) || 'Ошибка поиска'); return; }
+          if (!res || !res.ok) { showToast((res && res.error) || t('lookupErr')); return; }
           openProductCard(res);
         },
         function(err) {
           showLoader(false);
-          showToast((err && err.message) || 'Ошибка сервера');
+          showToast((err && err.message) || t('loginErrServer'));
         }
       );
     }
@@ -2229,19 +2545,19 @@
       const addToBaseRow = document.getElementById('add-to-base-row');
       if (base.found && currentExpectedQty !== null) {
         document.getElementById('stat-expected').textContent = currentExpectedQty + unitSuffix;
-        document.getElementById('stat-expected-sub').textContent = 'Найдено в Базе';
+        document.getElementById('stat-expected-sub').textContent = t('foundInBase');
         const fillBtn = document.getElementById('btn-fill-expected');
-        fillBtn.textContent = '= По учёту (' + currentExpectedQty + ')';
+        fillBtn.textContent = t('fillExpectedBtn', { n: currentExpectedQty });
         fillBtn.classList.remove('hidden');
         addToBaseRow.classList.add('hidden');
       } else if (base.found) {
         document.getElementById('stat-expected').textContent = '—';
-        document.getElementById('stat-expected-sub').textContent = 'Без учётного кол-ва';
+        document.getElementById('stat-expected-sub').textContent = t('noQtyInBase');
         document.getElementById('btn-fill-expected').classList.add('hidden');
         addToBaseRow.classList.add('hidden');
       } else {
-        document.getElementById('stat-expected').textContent = 'Нет';
-        document.getElementById('stat-expected-sub').textContent = 'Нет в Базе';
+        document.getElementById('stat-expected').textContent = t('noWord');
+        document.getElementById('stat-expected-sub').textContent = t('notInBase');
         document.getElementById('btn-fill-expected').classList.add('hidden');
         addToBaseRow.classList.remove('hidden');
       }
@@ -2250,14 +2566,14 @@
       const deleteBtn = document.getElementById('btn-delete-scan');
       if (userRec.found && userRec.factQty !== null && userRec.factQty !== undefined) {
         document.getElementById('stat-prev').textContent = userRec.factQty + unitSuffix;
-        document.getElementById('stat-prev-sub').textContent = userRec.updatedAt || 'Внесено';
-        statusBadge.textContent = 'В листе';
+        document.getElementById('stat-prev-sub').textContent = userRec.updatedAt || t('savedWord');
+        statusBadge.textContent = t('statusInSheet');
         statusBadge.style.color = 'var(--accent)';
         deleteBtn.classList.remove('hidden');
       } else {
         document.getElementById('stat-prev').textContent = '0';
-        document.getElementById('stat-prev-sub').textContent = 'Ещё не вносилось';
-        statusBadge.textContent = 'Новое';
+        document.getElementById('stat-prev-sub').textContent = t('notScannedYet');
+        statusBadge.textContent = t('statusNew');
         statusBadge.style.color = 'var(--primary)';
         deleteBtn.classList.add('hidden');
       }
@@ -2273,13 +2589,13 @@
 
       const qtyInput = document.getElementById('prod-qty');
       if (currentOpType === 'in') {
-        document.getElementById('qty-mode-label').textContent = 'Приход (+ к текущему):';
+        document.getElementById('qty-mode-label').textContent = t('qtyModeIn');
         qtyInput.value = 1;
       } else if (currentOpType === 'out') {
-        document.getElementById('qty-mode-label').textContent = 'Расход (− от текущего):';
+        document.getElementById('qty-mode-label').textContent = t('qtyModeOut');
         qtyInput.value = 1;
       } else {
-        document.getElementById('qty-mode-label').textContent = 'Фактически в наличии:';
+        document.getElementById('qty-mode-label').textContent = t('qtyModeInv');
         const u = data.userRecord || {};
         qtyInput.value = (u.found && u.factQty !== null && u.factQty !== undefined) ? u.factQty : 1;
       }
@@ -2306,13 +2622,13 @@
       pill.className = 'diff-pill';
       if (diff === 0) {
         pill.classList.add('diff-ok');
-        pill.textContent = 'Совпадает (0)';
+        pill.textContent = t('diffOk');
       } else if (diff < 0) {
         pill.classList.add('diff-neg');
-        pill.textContent = 'Разница: ' + diff;
+        pill.textContent = t('diffNeg', { d: diff });
       } else {
         pill.classList.add('diff-pos');
-        pill.textContent = 'Разница: +' + diff;
+        pill.textContent = t('diffPos', { d: diff });
       }
     }
 
@@ -2373,7 +2689,7 @@
       const qtyVal = Number(rawQty);
 
       if (!rawQty || !Number.isFinite(qtyVal) || qtyVal < 0) {
-        showAlert('product-error', 'Введите корректное количество (0 или больше).');
+        showAlert('product-error', t('errInvalidQty'));
         return;
       }
 
@@ -2393,7 +2709,7 @@
       document.getElementById('manual-barcode').value = '';
       closeProductCard();
       beepSaved();
-      showToast('Сохранено: ' + barcode + ' — ' + optimisticFact);
+      showToast(t('savedToast', { bc: barcode, qty: optimisticFact }));
 
       const payload = {
         userNumber: currentUser.number,
@@ -2412,12 +2728,12 @@
             if (res.userItems) saveUserItemsCache(res.userItems);
             if (res.recent) { recentItems = res.recent; renderActiveList(); }
           } else {
-            showToast((res && res.error) || 'Ошибка сохранения на сервере');
+            showToast((res && res.error) || t('serverSaveErr'));
           }
         },
         function() {
           enqueueOfflineSave(payload);
-          showToast('📴 Нет сети — сохранено в очередь');
+          showToast(t('offlineSaveToast'));
         }
       );
     }
@@ -2425,25 +2741,25 @@
     function deleteCurrentProduct() {
       if (!currentUser) return;
       const barcode = document.getElementById('prod-barcode').textContent.trim();
-      if (!barcode || !confirm('Удалить штрихкод ' + barcode + ' из вашего листа?')) return;
+      if (!barcode || !confirm(t('confirmDelete', { bc: barcode }))) return;
 
       showLoader(true);
       callServer('deleteScan', { userNumber: currentUser.number, barcode: barcode, location: currentLocation },
         function(res) {
           showLoader(false);
           if (!res || !res.ok) {
-            showAlert('product-error', (res && res.error) || 'Не удалось удалить.');
+            showAlert('product-error', (res && res.error) || t('deleteErr'));
             return;
           }
           if (res.userItems) saveUserItemsCache(res.userItems);
           if (res.recent) { recentItems = res.recent; renderActiveList(); }
           document.getElementById('manual-barcode').value = '';
           closeProductCard();
-          showToast('Удалено: ' + barcode);
+          showToast(t('deletedToast', { bc: barcode }));
         },
         function(err) {
           showLoader(false);
-          showAlert('product-error', (err && err.message) || 'Ошибка удаления.');
+          showAlert('product-error', (err && err.message) || t('deleteSrvErr'));
         }
       );
     }
@@ -2458,9 +2774,10 @@
 
     function renderActiveList() {
       const container = document.getElementById('recent-list');
+      if (!container) return;
       if (activeListTab === 'uncounted') {
         if (!catalogCache.length) {
-          container.innerHTML = '<div style="color:var(--muted); font-size:13px;">Лист «База» пока пуст</div>';
+          container.innerHTML = '<div style="color:var(--muted); font-size:13px;">' + escapeHtml(t('baseEmpty')) + '</div>';
           return;
         }
         const counted = {};
@@ -2472,7 +2789,7 @@
           return !counted[it.barcode] && !(/^\d+$/.test(it.barcode) && counted[stripZeroes(it.barcode)]);
         });
         if (!missing.length) {
-          container.innerHTML = '<div style="color:var(--success); font-size:13px; font-weight:600;">✓ Все товары из Базы посчитаны!</div>';
+          container.innerHTML = '<div style="color:var(--success); font-size:13px; font-weight:600;">' + escapeHtml(t('allCounted')) + '</div>';
           return;
         }
         container.innerHTML = '';
@@ -2482,12 +2799,12 @@
           btn.className = 'recent-item';
           btn.innerHTML =
             '<div class="recent-info">' +
-              '<div class="recent-name">' + escapeHtml(item.name || 'Без названия') + '</div>' +
+              '<div class="recent-name">' + escapeHtml(item.name || t('noTitle')) + '</div>' +
               '<div class="recent-meta">' + escapeHtml(item.barcode) + '</div>' +
             '</div>' +
             '<div class="recent-qty">' +
               '<div class="recent-fact" style="color:var(--muted);">—</div>' +
-              '<div class="recent-exp">Учёт: ' + escapeHtml(item.expectedQty !== null ? String(item.expectedQty) : '—') + '</div>' +
+              '<div class="recent-exp">' + escapeHtml(t('expectedShort', { n: item.expectedQty !== null ? String(item.expectedQty) : '—' })) + '</div>' +
             '</div>';
           btn.onclick = function() { openProductFromCacheOrServer(item.barcode); };
           container.appendChild(btn);
@@ -2496,7 +2813,7 @@
       }
 
       if (!recentItems || !recentItems.length) {
-        container.innerHTML = '<div style="color:var(--muted); font-size:13px;">Пока нет записей в вашем листе</div>';
+        container.innerHTML = '<div style="color:var(--muted); font-size:13px;">' + escapeHtml(t('noRecords')) + '</div>';
         return;
       }
 
@@ -2505,10 +2822,10 @@
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'recent-item';
-        const title = item.name ? item.name : 'Без названия';
+        const title = item.name ? item.name : t('noTitle');
         const expText = item.expectedQty !== null && item.expectedQty !== undefined
-          ? ('Учёт: ' + item.expectedQty)
-          : 'Нет в базе';
+          ? t('expectedShort', { n: item.expectedQty })
+          : t('notInBaseShort');
         const locTag = item.location ? (' • 📍' + item.location) : '';
 
         btn.innerHTML =
@@ -2530,7 +2847,7 @@
     function openQrModal() {
       const bc = document.getElementById('prod-barcode').textContent.trim();
       const name = document.getElementById('prod-name').value.trim();
-      document.getElementById('qr-title').textContent = name || 'Товар';
+      document.getElementById('qr-title').textContent = name || t('itemWord');
       document.getElementById('qr-code-text').textContent = bc;
       document.getElementById('qr-img').src = 'https://quickchart.io/qr?size=220&text=' + encodeURIComponent(bc);
       document.getElementById('qr-modal').classList.remove('hidden');
